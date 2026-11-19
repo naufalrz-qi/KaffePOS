@@ -30,6 +30,7 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "core.tenancy.TenantMiddleware",
 ]
 
 ROOT_URLCONF = "kaffepos.urls"
