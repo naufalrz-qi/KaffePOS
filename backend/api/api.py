@@ -3,10 +3,15 @@ import secrets
 
 from django.utils import timezone
 from ninja import NinjaAPI, Schema
+from ninja.errors import AuthenticationError
 from ninja.errors import ValidationError as NinjaValidationError
+from ninja.security import HttpBearer
 
-from core.models import Device, token_hash
+from core.models import Device, Tenant, token_hash
 from core.ratelimit import client_ip, hit
+from core.tenancy import activate_tenant
+
+from .snapshot import build_snapshot
 
 api = NinjaAPI(title="KaffePOS API", version="1", urls_namespace="api_v1")
 
@@ -25,6 +30,26 @@ def on_api_error(request, exc):
 @api.exception_handler(NinjaValidationError)
 def on_validation_error(request, exc):
     return api.create_response(request, {"error": "invalid_request", "message": str(exc.errors)[:500]}, status=400)
+
+
+@api.exception_handler(AuthenticationError)
+def on_missing_token(request, exc):
+    return api.create_response(request, {"error": "invalid_token", "message": "Token device wajib diisi"}, status=401)
+
+
+class DeviceAuth(HttpBearer):
+    def authenticate(self, request, token):
+        device = (Device.all_tenants.select_related("outlet", "tenant")
+                  .filter(token_hash=token_hash(token)).first())
+        if device is None:
+            raise ApiError(401, "invalid_token", "Token device tidak dikenal")
+        if device.revoked_at:
+            raise ApiError(401, "device_revoked", "Device sudah dicabut")
+        activate_tenant(device.tenant_id)
+        return device
+
+
+device_auth = DeviceAuth()
 
 
 class ActivateIn(Schema):
@@ -50,3 +75,18 @@ def activate(request, payload: ActivateIn):
     return {"token": token,
             "device": {"id": str(device.id), "number": device.number},
             "outlet": {"id": str(device.outlet_id), "code": device.outlet.code, "name": device.outlet.name}}
+
+
+def master_version(device) -> int:
+    return Tenant.objects.values_list("master_version", flat=True).get(pk=device.tenant_id)
+
+
+@api.get("/sync/master", auth=device_auth)
+def sync_master(request, version: int = 0):
+    device = request.auth
+    current = master_version(device)  # dibaca SEBELUM data, jadi tidak ada perubahan yang terlewat (desain §5)
+    Device.all_tenants.filter(pk=device.pk).update(last_sync_at=timezone.now())
+    body = {"changed": current != version, "version": current, "server_time": timezone.now()}
+    if body["changed"]:
+        body["snapshot"] = build_snapshot(device)
+    return body

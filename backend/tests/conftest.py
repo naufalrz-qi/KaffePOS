@@ -1,6 +1,7 @@
 import pytest
+from django.utils import timezone
 
-from core.models import Outlet, Tenant
+from core.models import Device, Outlet, Tenant, token_hash
 from core.tenancy import tenant_context
 
 
@@ -19,3 +20,17 @@ def tctx(tenant):
 @pytest.fixture
 def outlet(tctx):
     return Outlet.objects.create(code="GRB01", name="Gerobak Sudirman")
+
+
+@pytest.fixture
+def device(outlet):
+    return Device.objects.create(outlet=outlet, name="HP Kasir 1")
+
+
+@pytest.fixture
+def auth(device):
+    """Header Authorization untuk device yang sudah aktif."""
+    token = f"token-uji-{device.id.hex}"
+    device.token_hash, device.activated_at = token_hash(token), timezone.now()
+    device.save()
+    return {"HTTP_AUTHORIZATION": f"Bearer {token}", "HTTP_X_APP_VERSION": "1.0.0"}

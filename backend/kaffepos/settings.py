@@ -69,3 +69,4 @@ USE_TZ = True
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+MIN_APP_VERSION = os.environ.get("MIN_APP_VERSION", "1.0.0")
