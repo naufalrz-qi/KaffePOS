@@ -3,17 +3,19 @@
 Setiap event idempotent lewat kunci entitasnya. Penjualan tidak pernah ditolak karena aturan bisnis:
 `Reject` hanya untuk data rusak/akses salah, `Retry` untuk ketergantungan yang belum diterima.
 """
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Literal
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
 from django.db import IntegrityError, transaction
 from django.db.models import Sum
+from django.utils import timezone
 from pydantic import AwareDatetime, BaseModel, Field, ValidationError
 
 from core.models import User
-from sales.models import CashMovement, Payment, Sale, Shift
+from sales.models import CashMovement, Payment, Sale, SaleItem, SaleItemModifier, Shift
+from sales.totals import compute_totals
 
 
 class Retry(Exception):
@@ -110,9 +112,135 @@ def shift_closed(device, data):
     return "ok"
 
 
+class ModifierIn(BaseModel):
+    option_id: UUID
+    group_name: str = Field(max_length=40)
+    name: str = Field(max_length=40)
+    price_delta: int = Field(ge=0)
+
+
+class ItemIn(BaseModel):
+    id: UUID
+    product_id: UUID
+    name: str = Field(max_length=80)
+    category_name: str = Field("", max_length=60)
+    qty: int = Field(gt=0)
+    unit_price: int = Field(ge=0)  # item reward dikirim dengan unit_price 0
+    discount: int = Field(0, ge=0)
+    earns_stamp: bool = False
+    is_reward: bool = False
+    note: str = Field("", max_length=120)
+    modifiers: list[ModifierIn] = []
+
+
+class PaymentIn(BaseModel):
+    id: UUID
+    method: Literal["CASH", "QRIS", "TRANSFER", "EWALLET"]
+    amount: int = Field(ge=0)
+    tendered: int | None = Field(None, ge=0)
+    change: int | None = Field(None, ge=0)
+    reference: str | None = Field(None, max_length=60)
+
+
+class PricingIn(BaseModel):
+    tax_enabled: bool
+    tax_rate_bp: int = Field(ge=0, le=10000)
+    tax_inclusive: bool
+    rounding_unit: Literal[0, 100, 500, 1000]
+
+
+class MemberRefIn(BaseModel):
+    code: str | None = Field(None, max_length=40)
+    phone: str | None = Field(None, max_length=40)
+
+
+class SaleCompleted(BaseModel):
+    sale_id: UUID
+    shift_id: UUID
+    staff_id: UUID
+    receipt_no: str = Field(max_length=40)
+    created_at: AwareDatetime
+    customer_label: str = Field("", max_length=40)
+    member: MemberRefIn | None = None
+    pricing: PricingIn
+    items: list[ItemIn] = Field(min_length=1)
+    order_discount: int = Field(0, ge=0)
+    discount_reason: str | None = Field(None, max_length=120)
+    subtotal: int
+    tax_total: int
+    rounding: int
+    total: int
+    payments: list[PaymentIn] = Field(min_length=1)
+
+
+def sale_completed(device, data):
+    d = SaleCompleted.model_validate(data)
+    if Sale.objects.filter(pk=d.sale_id).exists():
+        return "duplicate"
+    shift = shift_for(device, d.shift_id)
+    calc = compute_totals([i.model_dump() for i in d.items], d.order_discount, **d.pricing.model_dump())
+    flags = []
+    if calc != {"subtotal": d.subtotal, "tax_total": d.tax_total, "rounding": d.rounding, "total": d.total}:
+        flags.append("total_mismatch")
+    if Sale.objects.filter(receipt_no=d.receipt_no).exists():
+        flags.append("duplicate_receipt_no")
+    if d.created_at > timezone.now() + timedelta(minutes=5):
+        flags.append("clock_ahead")
+    sale = Sale.objects.create(
+        id=d.sale_id, outlet_id=device.outlet_id, device=device, shift=shift,
+        staff=staff_for(device, d.staff_id), receipt_no=d.receipt_no, created_at=d.created_at,
+        business_date=shift.business_date,
+        local_hour=local_time(d.created_at, device.outlet.timezone).hour,
+        customer_label=d.customer_label,
+        member_ref=(d.member.code or d.member.phone or "") if d.member else "",
+        subtotal=d.subtotal, discount_total=sum(i.discount for i in d.items) + d.order_discount,
+        discount_reason=d.discount_reason or "", tax_total=d.tax_total, rounding=d.rounding,
+        total=d.total, flags=",".join(flags), **d.pricing.model_dump())
+    for i in d.items:
+        modifiers_total = sum(m.price_delta for m in i.modifiers)
+        item = SaleItem.objects.create(
+            id=i.id, sale=sale, product_id=i.product_id, name=i.name, category_name=i.category_name,
+            qty=i.qty, unit_price=i.unit_price, modifiers_total=modifiers_total, discount=i.discount,
+            line_total=(i.unit_price + modifiers_total) * i.qty - i.discount,
+            is_reward=i.is_reward, earns_stamp=i.earns_stamp, note=i.note)
+        for m in i.modifiers:
+            SaleItemModifier.objects.create(sale_item=item, option_id=m.option_id, group_name=m.group_name,
+                                            name=m.name, price_delta=m.price_delta)
+    for p in d.payments:
+        Payment.objects.create(id=p.id, sale=sale, method=p.method, amount=p.amount, tendered=p.tendered,
+                               change_amount=p.change, reference=p.reference or "")
+    return "ok"
+
+
+class SaleVoided(BaseModel):
+    sale_id: UUID
+    staff_id: UUID
+    approved_by_id: UUID | None = None
+    voided_at: AwareDatetime
+    reason: str = Field(min_length=1, max_length=120)
+
+
+def sale_voided(device, data):
+    d = SaleVoided.model_validate(data)
+    sale = Sale.objects.filter(pk=d.sale_id).first()
+    if sale is None:
+        raise Retry("sale_unknown")
+    if sale.device_id != device.id:
+        raise Reject("forbidden")
+    if sale.status == Sale.Status.VOIDED:
+        return "duplicate"
+    sale.status, sale.voided_at, sale.void_reason = Sale.Status.VOIDED, d.voided_at, d.reason
+    sale.voided_by = staff_for(device, d.staff_id)
+    sale.void_approved_by = staff_for(device, d.approved_by_id) if d.approved_by_id else None
+    sale.save(update_fields=["status", "voided_at", "void_reason", "voided_by", "void_approved_by"])
+    return "ok"
+
+
 HANDLERS = {
     "shift.opened": shift_opened,
     "cash.moved": cash_moved,
+    "sale.completed": sale_completed,
+    "sale.voided": sale_voided,
     "shift.closed": shift_closed,
 }
 
