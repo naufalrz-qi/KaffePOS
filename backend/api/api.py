@@ -1,8 +1,9 @@
 """API mobile /api/v1 (desain teknis §5)."""
 import secrets
+from uuid import UUID
 
 from django.utils import timezone
-from ninja import NinjaAPI, Schema
+from ninja import Field, NinjaAPI, Schema
 from ninja.errors import AuthenticationError
 from ninja.errors import ValidationError as NinjaValidationError
 from ninja.security import HttpBearer
@@ -11,6 +12,7 @@ from core.models import Device, Tenant, token_hash
 from core.ratelimit import client_ip, hit
 from core.tenancy import activate_tenant
 
+from .push import process_event
 from .snapshot import build_snapshot
 
 api = NinjaAPI(title="KaffePOS API", version="1", urls_namespace="api_v1")
@@ -90,3 +92,24 @@ def sync_master(request, version: int = 0):
     if body["changed"]:
         body["snapshot"] = build_snapshot(device)
     return body
+
+
+class EventIn(Schema):
+    id: UUID
+    type: str
+    data: dict
+
+
+class PushIn(Schema):
+    pending_after: int = Field(0, ge=0)
+    events: list[EventIn] = Field(max_length=100)
+
+
+@api.post("/sync/push", auth=device_auth)
+def sync_push(request, payload: PushIn):
+    device = request.auth
+    results = [process_event(device, e.id, e.type, e.data) for e in payload.events]
+    Device.all_tenants.filter(pk=device.pk).update(
+        last_sync_at=timezone.now(), pending_count=payload.pending_after,
+        app_version=request.headers.get("X-App-Version", "")[:20])
+    return {"results": results, "server_time": timezone.now(), "master_version": master_version(device)}
