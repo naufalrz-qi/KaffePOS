@@ -2549,8 +2549,22 @@ git commit -m "feat: dashboard kelola outlet, kategori, modifier, produk" -m "Co
 
 `backend/tests/test_dashboard_staff_device.py`:
 ```python
-from core.models import Device, Tenant, User
+from core.models import Device, Outlet, Tenant, User
 from core.pins import check_pin
+from core.tenancy import tenant_context
+from dashboard.forms import StaffForm
+
+
+def test_staff_form_outlet_choices_follow_active_tenant(db):
+    """Regresi: pilihan outlet tidak boleh terkunci ke tenant yang aktif saat modul form di-import."""
+    a, b = Tenant.objects.create(name="A"), Tenant.objects.create(name="B")
+    with tenant_context(a.id):
+        Outlet.objects.create(code="A1", name="Outlet A")
+    with tenant_context(b.id):
+        Outlet.objects.create(code="B1", name="Outlet B")
+        assert [o.code for o in StaffForm().fields["outlets"].queryset] == ["B1"]
+    with tenant_context(a.id):
+        assert [o.code for o in StaffForm().fields["outlets"].queryset] == ["A1"]
 
 
 def test_create_cashier_with_pin(owner_client, outlet):
@@ -2592,7 +2606,9 @@ Expected: FAIL (404 untuk `/staf/…` dan `/device/…`).
 
 - [ ] **Step 3: Implementasi form staf**
 
-Di `backend/dashboard/forms.py`, tambahkan import:
+> **Catatan (ditemukan saat eksekusi):** field M2M `outlets` jangan dibiarkan dibuat otomatis oleh ModelForm di level modul. Field otomatis membangun queryset `Outlet` ber-tenant saat modul di-import, sehingga gagal tanpa tenant atau terkunci ke tenant yang kebetulan aktif. Karena itu field dideklarasikan manual dan queryset-nya diisi di `__init__`.
+
+Di `backend/dashboard/forms.py`, ubah `from core.models import User` menjadi `from core.models import Outlet, User`, lalu tambahkan import:
 ```python
 from django.contrib.auth.password_validation import validate_password
 
@@ -2602,6 +2618,9 @@ from core.tenancy import current_tenant_id
 dan tambahkan di akhir file:
 ```python
 class StaffForm(forms.ModelForm):
+    # Dideklarasikan manual: field otomatis dari model membangun queryset Outlet ber-tenant saat modul
+    # di-import, sehingga terkunci ke tenant yang kebetulan aktif. Queryset asli diisi per request di __init__.
+    outlets = forms.ModelMultipleChoiceField(queryset=Outlet.all_tenants.none(), required=False, label="Outlet")
     pin = forms.CharField(label="PIN app kasir (6 digit)", required=False, min_length=6, max_length=6,
                           help_text="Wajib untuk staf baru. Kosongkan jika tidak diubah.")
     new_password = forms.CharField(label="Password dashboard", required=False, widget=forms.PasswordInput,
@@ -2610,6 +2629,10 @@ class StaffForm(forms.ModelForm):
     class Meta:
         model = User
         fields = ["display_name", "username", "role", "outlets", "can_discount", "is_active"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["outlets"].queryset = Outlet.objects.all()  # tenant aktif saat request ini
 
     def clean_pin(self):
         pin = self.cleaned_data["pin"]
@@ -2773,7 +2796,7 @@ Di `backend/dashboard/templates/dashboard/base.html`, tambahkan tepat di bawah b
 - [ ] **Step 6: Jalankan test**
 
 Run: `.\.venv\Scripts\python.exe -m pytest`
-Expected: `48 passed`.
+Expected: `49 passed`.
 
 - [ ] **Step 7: Commit**
 
@@ -2903,7 +2926,7 @@ Lupa password owner nanti cukup diatasi dengan `.\.venv\Scripts\python.exe manag
 - [ ] **Step 4: Jalankan seluruh test**
 
 Run: `.\.venv\Scripts\python.exe -m pytest`
-Expected: `51 passed`.
+Expected: `52 passed`.
 
 - [ ] **Step 5: Smoke test manual di database dev**
 
