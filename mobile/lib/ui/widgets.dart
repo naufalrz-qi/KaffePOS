@@ -1,5 +1,6 @@
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:share_plus/share_plus.dart';
 
 /// Angka uang dari kolom input (kosong = 0).
 int parseMoney(String text) => int.tryParse(text) ?? 0;
@@ -122,3 +123,9 @@ class _PinDialogState extends State<_PinDialog> {
         ),
       );
 }
+
+const _mono = '```'; // tiga backtick: WhatsApp menampilkan teks di antaranya dengan huruf monospace
+
+/// Bagikan teks struk lewat menu share HP, mis. ke WhatsApp (PRD K-13).
+Future<void> shareLines(List<String> lines) =>
+    SharePlus.instance.share(ShareParams(text: '$_mono\n${lines.join('\n')}\n$_mono'));

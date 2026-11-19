@@ -48,7 +48,7 @@ class SaleDetailPage extends StatelessWidget {
   final AppState state;
   final SaleRow sale;
 
-  List<String> get lines => receiptLines(sale.payload, state.snapshot!, voided: sale.voided);
+  List<String> get lines => receiptLines(sale.payload, state.snapshot!, width: state.printer.width, voided: sale.voided);
 
   @override
   Widget build(BuildContext context) {
@@ -63,11 +63,26 @@ class SaleDetailPage extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.all(12),
           child: Row(children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                  onPressed: () => _print(context), icon: const Icon(Icons.print), label: const Text('Cetak')),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: OutlinedButton.icon(
+                  onPressed: () => shareLines(lines), icon: const Icon(Icons.share), label: const Text('Bagikan')),
+            ),
+            if (canVoid) const SizedBox(width: 8),
             if (canVoid) Expanded(child: OutlinedButton(onPressed: () => _void(context), child: const Text('Void'))),
           ]),
         ),
       ),
     );
+  }
+
+  Future<void> _print(BuildContext context) async {
+    final error = await state.printer.printLines(lines);
+    if (context.mounted) snack(context, error ?? 'Struk dicetak ulang');
   }
 
   /// Wajib alasan; PIN manager jika outlet mewajibkan dan staf bukan manager/owner.

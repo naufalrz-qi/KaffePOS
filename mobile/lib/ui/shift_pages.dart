@@ -128,7 +128,8 @@ class _CloseShiftPageState extends State<CloseShiftPage> {
     setState(() => _busy = true);
     final state = widget.state;
     final lines = shiftRecapLines(r, state.snapshot!,
-        staffName: state.staff!.name, openedAt: state.shift!.openedAt, closedAt: state.now(), counted: counted);
+        staffName: state.staff!.name, openedAt: state.shift!.openedAt, closedAt: state.now(), counted: counted,
+        width: state.printer.width);
     await state.closeShift(counted);
     if (!mounted) return;
     Navigator.of(context).pushReplacement(MaterialPageRoute<void>(builder: (_) => ShiftClosedPage(state, lines)));
@@ -153,6 +154,22 @@ class ShiftClosedPage extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.all(12),
             child: Row(children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () async {
+                    final error = await state.printer.printLines(lines);
+                    if (context.mounted) snack(context, error ?? 'Rekap dicetak');
+                  },
+                  icon: const Icon(Icons.print),
+                  label: const Text('Cetak'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                    onPressed: () => shareLines(lines), icon: const Icon(Icons.share), label: const Text('Bagikan')),
+              ),
+              const SizedBox(width: 8),
               Expanded(
                 child: FilledButton(
                   onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst),

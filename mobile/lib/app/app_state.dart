@@ -11,6 +11,7 @@ import '../data/db.dart';
 import '../data/sales_store.dart';
 import '../data/snapshot.dart';
 import '../data/store.dart';
+import '../print/printer.dart';
 import '../sync/api.dart';
 import '../sync/sync_engine.dart';
 
@@ -54,6 +55,7 @@ class AppState extends ChangeNotifier {
     await store.cleanup(DateTime.now());
     final state = AppState(store: store, api: Api(apiBase));
     await state.init();
+    await state.printer.load();
     return state;
   }
 
@@ -64,6 +66,7 @@ class AppState extends ChangeNotifier {
   final bool autoSync;
   final DateTime Function() _clock;
   final cart = Cart();
+  late final printer = PrinterSettings(store);
 
   bool activated = false;
   Snapshot? snapshot;
