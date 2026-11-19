@@ -1,0 +1,6 @@
+Django>=5.2.8,<5.3
+mssql-django>=2.0
+django-ninja>=1.4
+tzdata
+pytest>=8
+pytest-django>=4.9
