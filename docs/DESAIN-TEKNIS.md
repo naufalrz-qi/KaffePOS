@@ -112,9 +112,9 @@ KaffePOS/
 
 | Tabel | Kolom utama | Kunci / index |
 |---|---|---|
-| `core_tenant` | name, logo, primary_color, contact, receipt_footer, master_version, next_device_no, resend_since | — |
+| `core_tenant` | name, logo, primary_color, contact, receipt_footer, payment_methods (mis. `CASH,QRIS`), master_version, next_device_no, resend_since | — |
 | `core_user` | (AbstractUser) + role (OWNER/MANAGER/CASHIER), display_name, pin_hash, can_discount; M2M `outlets` | username unik |
-| `core_outlet` | code, name, type (OUTLET/MOBILE), timezone, tax_enabled, tax_rate_bp, tax_inclusive, rounding_unit (0/100/500/1000), void_needs_manager, qris_image, receipt_header, receipt_footer, is_active | unik (tenant, code) |
+| `core_outlet` | code, name, type (OUTLET/MOBILE), timezone, tax_enabled, tax_rate_bp, tax_inclusive, rounding_unit (0/100/500/1000), void_needs_manager, qris_image (biner PNG/JPG ≤ 300 KB, ikut backup database), receipt_header, receipt_footer, is_active | unik (tenant, code) |
 | `core_device` | outlet_id, number, name, activation_code, activation_expires_at, token_hash, activated_at, revoked_at, last_sync_at, pending_count, app_version | unik (tenant, number); index token_hash, activation_code |
 | `core_auditlog` | at, actor_id, device_id, action, object_type, object_id, detail | index (tenant, at) |
 
@@ -191,7 +191,7 @@ Jika tidak berubah: `{"changed": false, "version": 41, "server_time": "…"}`. J
   "outlet": {"id": "…", "code": "GRB01", "name": "Gerobak Sudirman", "type": "MOBILE",
              "timezone": "Asia/Jakarta", "tax_enabled": false, "tax_rate_bp": 1000,
              "tax_inclusive": true, "rounding_unit": 0, "void_needs_manager": false,
-             "qris_image_url": "…", "receipt_header": "…", "receipt_footer": "…"},
+             "qris_image": "<base64 PNG/JPG atau null>", "receipt_header": "…", "receipt_footer": "…"},
   "device": {"id": "…", "number": 3},
   "staff": [{"id": "…", "name": "Andi", "role": "CASHIER",
              "pin_hash": "pbkdf2_sha256$20000$…", "can_discount": false}],
@@ -207,6 +207,7 @@ Jika tidak berubah: `{"changed": false, "version": 41, "server_time": "…"}`. J
 }}
 ```
 - Isinya hanya produk aktif yang tersedia di outlet itu, dan staf aktif yang punya akses ke outlet itu (owner selalu ikut).
+- `payment_methods` = metode aktif dari profil usaha (PRD M-06). `outlet.qris_image` ikut snapshot sebagai base64 supaya QRIS tetap tampil saat offline; jika snapshot membesar, pindah ke URL + cache di HP.
 - Server membaca `master_version` **sebelum** mengambil data. Jika ada perubahan di antara keduanya, HP mendapat data yang lebih baru dengan label versi lama, lalu mengunduh ulang di siklus berikutnya. Jadi tidak ada perubahan yang terlewat.
 - `resend_since` diisi setelah restore backup (§10.4).
 
@@ -306,11 +307,12 @@ Atau `{"found": false}`.
 | UUIDv7 | `uuid` |
 | Deteksi perubahan jaringan | `connectivity_plus` |
 | Sync di background | `workmanager` |
-| Scan QR | `mobile_scanner` |
-| Tampilkan QR di layar | `qr_flutter` |
+| Scan QR | `mobile_scanner` (mulai M3) |
+| Tampilkan QR di layar | `qr_flutter` (mulai M3) |
 | Bagikan struk | `share_plus` |
-| PBKDF2 untuk PIN | `cryptography` |
-| Printer ESC/POS Bluetooth | Dipilih lewat spike di awal M2 (§13) |
+| PBKDF2 untuk PIN | `crypto` (HMAC-SHA256 resmi dart-lang) + loop PBKDF2 ±15 baris, dijalankan di `Isolate.run` |
+| Printer ESC/POS Bluetooth | Tanpa paket: MethodChannel Kotlin (Bluetooth Classic SPP) + perintah ESC/POS buatan sendiri (§13). Printer yang sudah diuji dicatat di `docs/printer.md` |
+| Test di PC | `sqflite_common_ffi` (SQLite in-memory), `package:http/testing.dart` |
 
 State memakai `ChangeNotifier` + `ListenableBuilder` bawaan Flutter, tanpa library state management. URL server diset saat build (`--dart-define=API_BASE=…`).
 
@@ -318,9 +320,9 @@ State memakai `ChangeNotifier` + `ListenableBuilder` bawaan Flutter, tanpa libra
 
 | Tabel | Isi |
 |---|---|
-| `meta` (key, value) | device_id, device_no, outlet_id, master_version, last_sync_at, clock_skew_ms, resend_applied, status kunci PIN |
-| `master_snapshot` (version, json) | 1 baris: snapshot master utuh, dimuat ke memori saat app dibuka |
-| `shifts` | id, staff_id, opened_at, opening_cash, business_date, closed_at, counted_cash |
+| `meta` (key, value) | last_sync_at, clock_skew_ms, revoked, last_error, status kunci PIN (pin_fails, pin_locked_until), setting printer (printer_address, printer_name, paper_width, auto_print), resend_applied (M5). Token device ada di `flutter_secure_storage`; nomor device & outlet dibaca dari snapshot |
+| `master_snapshot` (version, json) | 1 baris: snapshot master utuh, dimuat ke memori saat app dibuka. `version` adalah versi master yang dikirim ke `GET /sync/master` |
+| `shifts` | id, staff_id, opened_at, opening_cash, closed_at, counted_cash (`business_date` dihitung server) |
 | `cash_movements` | id, shift_id, at, direction, amount, note |
 | `sales` | id, shift_id, receipt_no, created_at, total, status, payload (JSON `sale.completed`) |
 | `outbox` | seq (autoincrement), event_id (unik), type, payload, created_at, status (PENDING/SENT/REJECTED), attempts, last_error |
@@ -349,7 +351,7 @@ sync():
 ```
 - **Pemicu**: setelah transaksi selesai, perubahan jaringan (`connectivity_plus`), timer 5 menit selama app terbuka, `workmanager` ±15 menit di background, dan tombol "Sync sekarang".
 - Sync foreground dan background kadang jalan bersamaan dan mengirim event yang sama. Ini aman karena server idempotent, jadi tidak perlu kunci antar-isolate.
-- Jika `snapshot.resend_since` berbeda dari `meta.resend_applied`, outbox SENT sejak waktu itu dikembalikan ke PENDING, lalu `resend_applied` diperbarui (pemulihan setelah restore, §10.4).
+- (Mulai M5) Jika `snapshot.resend_since` berbeda dari `meta.resend_applied`, outbox SENT sejak waktu itu dikembalikan ke PENDING, lalu `resend_applied` diperbarui (pemulihan setelah restore, §10.4).
 - Jika versi app < `min_app_version`: sync & tutup shift tetap boleh, tapi buka shift baru diblokir.
 
 ### 6.4 Login staf, struk, member
@@ -539,7 +541,7 @@ Test backend dijalankan terhadap SQL Server (engine yang sama dengan produksi) s
 
 | Item | Kapan | Kriteria |
 |---|---|---|
-| Paket printer Bluetooth | Awal M2 | Masih dirawat; Bluetooth Classic (SPP); izin Android 12+ (`BLUETOOTH_CONNECT`); bisa cetak QR; lolos uji di 2–3 printer 58/80 mm yang umum |
+| Paket printer Bluetooth | M2 (Task 12) | Keputusan: tanpa plugin. MethodChannel Kotlin dengan socket SPP (secure, jatuh ke insecure untuk printer murah) + ESC/POS buatan sendiri; izin Android 12+ `BLUETOOTH_CONNECT`. Spike = uji teks, potong kertas, QR `GS ( k`, dan sambung ulang di 2–3 printer 58/80 mm; hasilnya di `docs/printer.md`. Printer yang gagal QR → fallback QR raster di M3 |
 | Hosting (PRD Q2) | Sebelum deploy staging di M0 | VPS vs server sendiri + Cloudflare Tunnel; compose sama, bedanya hanya service `cloudflared` |
 | Domain (PRD Q5) | Sebelum staging | Butuh 2 subdomain: `app.` dan `member.` |
 | Foto produk | M1 | Jika dipakai, HP perlu cache gambar (tambah `cached_network_image`) |
