@@ -1,0 +1,10 @@
+{% extends "dashboard/base.html" %}
+{% block content %}
+<article style="max-width: 420px; margin: 4rem auto">
+  <h2>Masuk</h2>
+  <form method="post">{% csrf_token %}
+    {{ form.as_div }}
+    <button type="submit">Masuk</button>
+  </form>
+</article>
+{% endblock %}

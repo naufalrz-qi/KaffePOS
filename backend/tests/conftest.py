@@ -1,7 +1,7 @@
 import pytest
 from django.utils import timezone
 
-from core.models import Device, Outlet, Tenant, token_hash
+from core.models import Device, Outlet, Tenant, User, token_hash
 from core.tenancy import tenant_context
 
 
@@ -34,3 +34,15 @@ def auth(device):
     device.token_hash, device.activated_at = token_hash(token), timezone.now()
     device.save()
     return {"HTTP_AUTHORIZATION": f"Bearer {token}", "HTTP_X_APP_VERSION": "1.0.0"}
+
+
+@pytest.fixture
+def owner(tctx):
+    return User.objects.create_user(username="owner", password="rahasia-123", tenant=tctx,
+                                    role=User.Role.OWNER, display_name="Pak Owner")
+
+
+@pytest.fixture
+def owner_client(client, owner):
+    client.force_login(owner)
+    return client

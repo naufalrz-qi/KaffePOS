@@ -23,6 +23,7 @@ INSTALLED_APPS = [
     "core",
     "catalog",
     "sales",
+    "dashboard",
 ]
 
 MIDDLEWARE = [
@@ -71,3 +72,11 @@ STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 MIN_APP_VERSION = os.environ.get("MIN_APP_VERSION", "1.0.0")
+LOGIN_URL = "login"
+LOGIN_REDIRECT_URL = "home"
+LOGOUT_REDIRECT_URL = "login"
+AUTH_PASSWORD_VALIDATORS = [
+    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator", "OPTIONS": {"min_length": 10}},
+    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
+    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
+]
