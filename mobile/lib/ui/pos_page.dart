@@ -5,7 +5,9 @@ import '../core/cart.dart';
 import '../core/format.dart';
 import '../data/snapshot.dart';
 import 'cart_page.dart';
+import 'history_page.dart';
 import 'modifier_sheet.dart';
+import 'shift_pages.dart';
 
 /// Layar jualan (PRD K-06): kategori, pencarian, grid menu bertombol besar, dan bar keranjang.
 class PosPage extends StatefulWidget {
@@ -41,6 +43,9 @@ class _PosPageState extends State<PosPage> {
   }
 
   List<(String, VoidCallback)> _menuItems() => [
+        ('Riwayat transaksi', () => _open(HistoryPage(state))),
+        ('Kas masuk / keluar', () => askCashMove(context, state)),
+        ('Tutup shift', () => _open(CloseShiftPage(state))),
         ('Ganti staf', state.logout),
       ];
 
