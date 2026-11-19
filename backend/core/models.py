@@ -30,6 +30,16 @@ class Tenant(models.Model):
     master_version = models.BigIntegerField(default=1, editable=False)
     next_device_no = models.PositiveIntegerField(default=1, editable=False)
 
+    COUNTERS = ("master_version", "next_device_no")
+
+    def save(self, *args, **kwargs):
+        # Counter hanya boleh berubah lewat UPDATE atomik (F()); save() biasa tidak boleh menimpanya
+        # dengan nilai basi dari memori.
+        if not self._state.adding and kwargs.get("update_fields") is None:
+            kwargs["update_fields"] = [f.name for f in self._meta.concrete_fields
+                                       if not f.primary_key and f.name not in self.COUNTERS]
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return self.name
 
