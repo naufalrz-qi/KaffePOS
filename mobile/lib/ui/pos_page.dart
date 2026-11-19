@@ -9,6 +9,7 @@ import 'history_page.dart';
 import 'modifier_sheet.dart';
 import 'printer_page.dart';
 import 'shift_pages.dart';
+import 'sync_status.dart';
 
 /// Layar jualan (PRD K-06): kategori, pencarian, grid menu bertombol besar, dan bar keranjang.
 class PosPage extends StatefulWidget {
@@ -48,6 +49,7 @@ class _PosPageState extends State<PosPage> {
         ('Kas masuk / keluar', () => askCashMove(context, state)),
         ('Tutup shift', () => _open(CloseShiftPage(state))),
         ('Printer', () => _open(PrinterPage(state))),
+        ('Masalah sync', () => _open(SyncProblemsPage(state))),
         ('Ganti staf', state.logout),
       ];
 
@@ -70,6 +72,7 @@ class _PosPageState extends State<PosPage> {
         ],
       ),
       body: Column(children: [
+        SyncStatusBar(state),
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
           child: TextField(

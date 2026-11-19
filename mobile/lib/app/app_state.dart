@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
@@ -222,6 +223,22 @@ class AppState extends ChangeNotifier {
     if (outcome != SyncOutcome.busy) online = outcome == SyncOutcome.ok;
     await load();
     return outcome;
+  }
+
+  /// Pemicu sync selama app terbuka (PRD K-26): tiap 5 menit, saat jaringan kembali, saat app dibuka lagi.
+  /// Sync background ±15 menit ditangani workmanager (lib/sync/background.dart).
+  void startAutoSync() {
+    Timer.periodic(const Duration(minutes: 5), (_) => syncNow());
+    Connectivity().onConnectivityChanged.listen((result) {
+      if (result.contains(ConnectivityResult.none)) {
+        online = false;
+        notifyListeners();
+      } else {
+        syncNow();
+      }
+    });
+    AppLifecycleListener(onResume: syncNow);
+    syncNow();
   }
 
   // ---- Reset device (PRD K-28)

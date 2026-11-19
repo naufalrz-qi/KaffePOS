@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import '../app/app_state.dart';
 import '../data/snapshot.dart';
 import '../sync/api.dart';
+import 'sync_status.dart';
 import 'widgets.dart';
 
 /// Aktivasi HP dengan kode dari dashboard (PRD K-01). Butuh internet satu kali.
@@ -197,6 +198,7 @@ class _OpenShiftPageState extends State<OpenShiftPage> {
           child: const Text('Buka shift', style: TextStyle(fontSize: 20)),
         ),
       ]),
+      bottomNavigationBar: SafeArea(child: SyncStatusBar(state)),
     );
   }
 }
