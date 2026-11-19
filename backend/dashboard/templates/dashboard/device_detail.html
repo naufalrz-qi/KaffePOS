@@ -1,0 +1,19 @@
+{% extends "dashboard/base.html" %}
+{% block content %}
+<h2>Device #{{ object.number }} — {{ object.name }}</h2>
+<p>Outlet: {{ object.outlet }}</p>
+{% if object.revoked_at %}
+  <p><mark>Dicabut {{ object.revoked_at|date:"d M Y H:i" }}</mark></p>
+{% elif object.activated_at %}
+  <p>Aktif sejak {{ object.activated_at|date:"d M Y H:i" }} · sync terakhir {{ object.last_sync_at|date:"d M Y H:i"|default:"-" }} · data menunggu {{ object.pending_count }}</p>
+{% else %}
+  <p>Kode aktivasi: <strong style="font-size: 2rem; letter-spacing: .2em">{{ object.activation_code }}</strong></p>
+  <p>Berlaku sampai {{ object.activation_expires_at|date:"H:i" }}. Masukkan kode ini di app kasir.</p>
+  <form method="post">{% csrf_token %}<button name="new_code" value="1">Buat kode baru</button></form>
+{% endif %}
+{% if not object.revoked_at %}
+<form method="post" onsubmit="return confirm('Cabut device ini? Data yang belum sync di HP itu tidak akan diterima lagi.')">
+  {% csrf_token %}<button name="revoke" value="1" class="secondary">Cabut device</button>
+</form>
+{% endif %}
+{% endblock %}

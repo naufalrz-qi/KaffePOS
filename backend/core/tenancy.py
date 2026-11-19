@@ -33,6 +33,10 @@ def tenant_context(tenant_id):
 
 
 class TenantManager(models.Manager):
+    """Filter tenant dihitung saat queryset DIBUAT. Jangan membangun queryset `objects` di level modul
+    (mis. field FK/M2M otomatis di ModelForm level modul): akan gagal tanpa tenant, atau terkunci ke tenant
+    yang kebetulan aktif saat import. Bangun di __init__ form / per request."""
+
     def get_queryset(self):
         return super().get_queryset().filter(tenant_id=current_tenant_id())
 

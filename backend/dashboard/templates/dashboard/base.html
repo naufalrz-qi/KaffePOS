@@ -19,6 +19,8 @@
       <li><a href="{% url 'produk_list' %}">Produk</a></li>
       <li><a href="{% url 'modifier_list' %}">Modifier</a></li>
       <li><a href="{% url 'opsi_list' %}">Opsi</a></li>
+      <li><a href="{% url 'staf_list' %}">Staf</a></li>
+      <li><a href="{% url 'device_list' %}">Device</a></li>
       {% endif %}
       <li><form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="outline">Keluar</button></form></li>
     </ul>
