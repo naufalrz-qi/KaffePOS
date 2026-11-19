@@ -6,15 +6,14 @@ from core.models import Outlet, User
 
 from . import views
 from .crud import crud
-from .forms import StaffForm
+from .forms import OutletForm, StaffForm
 
 urlpatterns = [
     path("login/", views.Login.as_view(), name="login"),
     path("logout/", LogoutView.as_view(), name="logout"),
     path("", views.Home.as_view(), name="home"),
-    *crud(Outlet, ["code", "name", "type", "timezone", "tax_enabled", "tax_rate_bp", "tax_inclusive",
-                   "rounding_unit", "void_needs_manager", "receipt_header", "receipt_footer", "is_active"],
-          ["code", "name", "type", "is_active"], "outlet", "Outlet & Gerobak"),
+    path("usaha/", views.BusinessUpdate.as_view(), name="usaha"),
+    *crud(Outlet, None, ["code", "name", "type", "is_active"], "outlet", "Outlet & Gerobak", form_cls=OutletForm),
     *crud(Category, ["name", "sort", "is_active"], ["name", "sort", "is_active"], "kategori", "Kategori"),
     *crud(ModifierGroup, ["name", "required", "multi", "sort"], ["name", "required", "multi"],
           "modifier", "Grup Modifier"),

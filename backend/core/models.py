@@ -14,6 +14,7 @@ from .tenancy import TenantManager, TenantScoped, current_tenant_id
 TIMEZONES = [("Asia/Jakarta", "WIB"), ("Asia/Makassar", "WITA"), ("Asia/Jayapura", "WIT")]
 ROUNDING_UNITS = [(0, "Tanpa pembulatan"), (100, "Rp100"), (500, "Rp500"), (1000, "Rp1.000")]
 CODE_ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"  # Crockford base32: tanpa I, L, O, U
+PAYMENT_METHODS = [("CASH", "Tunai"), ("QRIS", "QRIS"), ("TRANSFER", "Transfer"), ("EWALLET", "E-wallet")]
 
 
 def token_hash(token: str) -> str:
@@ -27,6 +28,8 @@ class Tenant(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid7, editable=False)
     name = models.CharField("Nama usaha", max_length=120)
     receipt_footer = models.CharField("Footer struk", max_length=200, blank=True)
+    payment_methods = models.CharField("Metode pembayaran aktif", max_length=60,
+                                       default="CASH,QRIS,TRANSFER,EWALLET")
     master_version = models.BigIntegerField(default=1, editable=False)
     next_device_no = models.PositiveIntegerField(default=1, editable=False)
 
@@ -84,6 +87,7 @@ class Outlet(TenantScoped):
         help_text="Aktifkan untuk outlet tetap; biarkan mati untuk gerobak keliling (rider bekerja sendiri).")
     receipt_header = models.CharField("Header struk", max_length=200, blank=True)
     receipt_footer = models.CharField("Footer struk", max_length=200, blank=True)
+    qris_image = models.BinaryField("Gambar QRIS", null=True, blank=True)
     is_active = models.BooleanField("Aktif", default=True)
 
     class Meta:

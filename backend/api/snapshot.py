@@ -1,11 +1,11 @@
 """Snapshot master data untuk satu device (desain §5). HP mengganti snapshot lamanya secara utuh."""
+import base64
+
 from django.conf import settings
 from django.db.models import Q
 
 from catalog.models import Category, ModifierGroup, Product
 from core.models import User
-
-PAYMENT_METHODS = ["CASH", "QRIS", "TRANSFER", "EWALLET"]
 
 
 def build_snapshot(device):
@@ -24,6 +24,8 @@ def build_snapshot(device):
             "tax_rate_bp": outlet.tax_rate_bp, "tax_inclusive": outlet.tax_inclusive,
             "rounding_unit": outlet.rounding_unit, "void_needs_manager": outlet.void_needs_manager,
             "receipt_header": outlet.receipt_header, "receipt_footer": outlet.receipt_footer,
+            # ponytail: gambar QRIS (≤ 300 KB) ikut snapshot sebagai base64; pindah ke URL + cache di HP jika snapshot membesar
+            "qris_image": base64.b64encode(bytes(outlet.qris_image)).decode() if outlet.qris_image else None,
         },
         "device": {"id": str(device.id), "number": device.number},
         "staff": [{"id": str(u.id), "name": u.display_name, "role": u.role,
@@ -39,6 +41,6 @@ def build_snapshot(device):
                              "options": [{"id": str(o.id), "name": o.name, "price_delta": o.price_delta}
                                          for o in g.options.all() if o.is_active]}
                             for g in ModifierGroup.objects.prefetch_related("options")],
-        "payment_methods": PAYMENT_METHODS,
+        "payment_methods": [m for m in tenant.payment_methods.split(",") if m],
         "stamp_rule": None,  # diisi di rencana M3 (loyalty)
     }

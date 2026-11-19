@@ -1,13 +1,13 @@
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib.auth.views import LoginView
 from django.shortcuts import redirect
-from django.urls import reverse
+from django.urls import reverse, reverse_lazy
 from django.utils import timezone
-from django.views.generic import CreateView, DetailView, ListView, TemplateView
+from django.views.generic import CreateView, DetailView, ListView, TemplateView, UpdateView
 
 from core.models import Device, User
 
-from .forms import LoginForm
+from .forms import BusinessForm, LoginForm
 
 
 class OwnerRequired(LoginRequiredMixin, UserPassesTestMixin):
@@ -60,3 +60,14 @@ class DeviceDetail(OwnerRequired, DetailView):
         elif device.activated_at is None and device.revoked_at is None:
             device.issue_activation_code()
         return redirect("device_detail", pk=pk)
+
+
+class BusinessUpdate(OwnerRequired, UpdateView):
+    """Profil usaha (PRD A-01) dan metode pembayaran aktif (M-06) milik owner yang login."""
+    form_class = BusinessForm
+    template_name = "dashboard/form.html"
+    extra_context = {"title": "Profil usaha"}
+    success_url = reverse_lazy("home")
+
+    def get_object(self, queryset=None):
+        return self.request.user.tenant

@@ -41,7 +41,7 @@ def on_missing_token(request, exc):
 
 class DeviceAuth(HttpBearer):
     def authenticate(self, request, token):
-        device = (Device.all_tenants.select_related("outlet", "tenant")
+        device = (Device.all_tenants.select_related("outlet", "tenant").defer("outlet__qris_image")
                   .filter(token_hash=token_hash(token)).first())
         if device is None:
             raise ApiError(401, "invalid_token", "Token device tidak dikenal")

@@ -3,7 +3,7 @@ from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.password_validation import validate_password
 from django.core.cache import cache
 
-from core.models import Outlet, User
+from core.models import PAYMENT_METHODS, Outlet, Tenant, User
 from core.pins import make_pin
 from core.ratelimit import client_ip, hit
 from core.tenancy import current_tenant_id
@@ -79,3 +79,50 @@ class StaffForm(forms.ModelForm):
             user.save()
             self.save_m2m()
         return user
+
+
+QRIS_MAX_BYTES = 300 * 1024
+
+
+class OutletForm(forms.ModelForm):
+    qris = forms.FileField(label="Gambar QRIS statis", required=False,
+                           help_text="PNG/JPG maks 300 KB. Kosongkan jika tidak diganti.")
+
+    class Meta:
+        model = Outlet
+        fields = ["code", "name", "type", "timezone", "tax_enabled", "tax_rate_bp", "tax_inclusive",
+                  "rounding_unit", "void_needs_manager", "receipt_header", "receipt_footer", "is_active"]
+
+    def clean_qris(self):
+        upload = self.cleaned_data["qris"]
+        if not upload:
+            return None
+        data = upload.read()
+        if len(data) > QRIS_MAX_BYTES:
+            raise forms.ValidationError("Ukuran gambar maksimal 300 KB.")
+        if not data.startswith((b"\x89PNG", b"\xff\xd8")):
+            raise forms.ValidationError("Gambar harus PNG atau JPG.")
+        return data
+
+    def save(self, commit=True):
+        if self.cleaned_data.get("qris"):
+            self.instance.qris_image = self.cleaned_data["qris"]
+        return super().save(commit)
+
+
+class BusinessForm(forms.ModelForm):
+    payment_methods = forms.MultipleChoiceField(label="Metode pembayaran aktif", choices=PAYMENT_METHODS,
+                                                widget=forms.CheckboxSelectMultiple)
+
+    class Meta:
+        model = Tenant
+        fields = ["name", "receipt_footer"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.initial["payment_methods"] = self.instance.payment_methods.split(",")
+
+    def save(self, commit=True):
+        chosen = self.cleaned_data["payment_methods"]
+        self.instance.payment_methods = ",".join(code for code, _ in PAYMENT_METHODS if code in chosen)
+        return super().save(commit)
