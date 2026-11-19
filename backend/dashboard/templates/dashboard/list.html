@@ -1,0 +1,15 @@
+{% extends "dashboard/base.html" %}
+{% block content %}
+<h2>{{ title }}</h2>
+<p><a href="{% url prefix|add:'_create' %}" role="button">Tambah</a></p>
+<table>
+  <thead><tr>{% for h in headers %}<th>{{ h|capfirst }}</th>{% endfor %}<th></th></tr></thead>
+  <tbody>
+  {% for pk, cells in rows %}
+    <tr>{% for c in cells %}<td>{{ c }}</td>{% endfor %}<td><a href="{% url prefix|add:'_update' pk %}">Ubah</a></td></tr>
+  {% empty %}
+    <tr><td colspan="99">Belum ada data.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
