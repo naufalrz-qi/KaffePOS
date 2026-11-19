@@ -1,3 +1,13 @@
+import 'dart:async';
+
 import 'package:material_ui/material_ui.dart';
 
-void main() => runApp(const MaterialApp(home: Scaffold(body: Center(child: Text('KaffePOS Kasir')))));
+import 'app/app_state.dart';
+import 'ui/app.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final state = await AppState.open();
+  unawaited(state.syncNow()); // ambil perubahan master & kirim antrean saat app dibuka
+  runApp(KasirApp(state));
+}
