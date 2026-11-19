@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 
 import '../app/app_state.dart';
+import 'pos_page.dart';
 import 'start_pages.dart';
 
 /// Halaman utama dipilih dari state: aktivasi → unduh data → login → buka shift → jualan.
@@ -21,7 +22,7 @@ class KasirApp extends StatelessWidget {
             if (state.snapshot == null) return DownloadPage(state);
             if (state.staff == null) return LoginPage(state);
             if (state.shift == null) return OpenShiftPage(state);
-            return const Scaffold(body: Center(child: Text('Shift terbuka')));
+            return PosPage(state);
           },
         ),
       );
