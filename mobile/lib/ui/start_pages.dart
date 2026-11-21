@@ -4,6 +4,7 @@ import '../app/app_state.dart';
 import '../data/snapshot.dart';
 import '../sync/api.dart';
 import 'sync_status.dart';
+import 'theme.dart';
 import 'widgets.dart';
 
 /// Aktivasi HP dengan kode dari dashboard (PRD K-01). Butuh internet satu kali.
@@ -46,6 +47,16 @@ class _ActivationPageState extends State<ActivationPage> {
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(title: const Text('Aktivasi HP kasir')),
         body: ListView(padding: const EdgeInsets.all(24), children: [
+          const CircleAvatar(
+            radius: 44,
+            backgroundColor: Sky.c100,
+            child: Icon(Icons.local_cafe, size: 48, color: Sky.c700),
+          ),
+          const SizedBox(height: 12),
+          Text('KaffePOS Kasir',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(color: Sky.c900, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 16),
           const Text('Minta kode aktivasi ke owner (menu Device di dashboard). Kode berlaku 15 menit, '
               'hanya bisa dipakai sekali, dan aktivasi butuh internet.'),
           const SizedBox(height: 16),
@@ -58,10 +69,11 @@ class _ActivationPageState extends State<ActivationPage> {
             decoration: InputDecoration(labelText: 'Kode aktivasi', errorText: _error),
           ),
           const SizedBox(height: 8),
-          FilledButton(
+          FilledButton.icon(
             style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(56)),
             onPressed: _busy ? null : _submit,
-            child: Text(_busy ? 'Menghubungi server…' : 'Aktifkan', style: const TextStyle(fontSize: 20)),
+            icon: const Icon(Icons.link),
+            label: Text(_busy ? 'Menghubungi server…' : 'Aktifkan', style: const TextStyle(fontSize: 20)),
           ),
         ]),
       );
@@ -75,17 +87,56 @@ class DownloadPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
+        appBar: AppBar(title: const Text('KaffePOS Kasir')),
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Icon(state.revoked ? Icons.block : Icons.cloud_download_outlined,
+                  size: 72, color: state.revoked ? Theme.of(context).colorScheme.error : Sky.c600),
+              const SizedBox(height: 16),
               Text(state.revoked ? 'Device ini sudah dicabut owner.' : 'Data menu belum terunduh. Pastikan ada internet.',
-                  textAlign: TextAlign.center),
+                  textAlign: TextAlign.center, style: const TextStyle(fontSize: 16)),
               const SizedBox(height: 16),
               if (state.revoked)
-                FilledButton(onPressed: state.resetDevice, child: const Text('Reset & aktivasi ulang'))
+                FilledButton.icon(
+                    onPressed: state.resetDevice, icon: const Icon(Icons.restart_alt), label: const Text('Reset & aktivasi ulang'))
               else
-                FilledButton(onPressed: state.syncNow, child: const Text('Coba lagi')),
+                FilledButton.icon(onPressed: state.syncNow, icon: const Icon(Icons.refresh), label: const Text('Coba lagi')),
+            ]),
+          ),
+        ),
+      );
+}
+
+const _roleLabels = {'OWNER': 'Owner', 'MANAGER': 'Manager', 'CASHIER': 'Kasir'};
+
+/// Kartu staf di layar login: inisial, nama, dan peran.
+class _StaffCard extends StatelessWidget {
+  const _StaffCard(this.staff, {required this.onTap});
+
+  final Staff staff;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Card(
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(8),
+            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+              CircleAvatar(
+                radius: 24,
+                backgroundColor: Sky.c200,
+                foregroundColor: Sky.c900,
+                child: Text(staff.name.isEmpty ? '?' : staff.name[0].toUpperCase(),
+                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              ),
+              const SizedBox(height: 8),
+              Text(staff.name,
+                  maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+              Text(_roleLabels[staff.role] ?? staff.role, style: const TextStyle(color: Sky.c700)),
             ]),
           ),
         ),
@@ -109,21 +160,26 @@ class LoginPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final snap = state.snapshot!;
     return Scaffold(
-      appBar: AppBar(title: Text('${snap.outlet.name} · siapa yang jaga?')),
-      body: GridView.count(
-        crossAxisCount: 2,
-        padding: const EdgeInsets.all(16),
-        mainAxisSpacing: 12,
-        crossAxisSpacing: 12,
-        childAspectRatio: 2.2,
-        children: [
-          for (final s in snap.staff)
-            FilledButton.tonal(
-              onPressed: () => _login(context, s),
-              child: Text(s.name, textAlign: TextAlign.center, style: const TextStyle(fontSize: 20)),
-            ),
-        ],
-      ),
+      appBar: AppBar(title: const Text('Siapa yang jaga?')),
+      body: ListView(padding: const EdgeInsets.all(16), children: [
+        Card(
+          child: ListTile(
+            leading: const Icon(Icons.storefront),
+            title: Text(snap.outlet.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+            subtitle: const Text('Pilih namamu, lalu masukkan PIN'),
+          ),
+        ),
+        const SizedBox(height: 12),
+        GridView.count(
+          crossAxisCount: 2,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          mainAxisSpacing: 12,
+          crossAxisSpacing: 12,
+          childAspectRatio: 1.1,
+          children: [for (final s in snap.staff) _StaffCard(s, onTap: () => _login(context, s))],
+        ),
+      ]),
     );
   }
 }
@@ -171,14 +227,25 @@ class _OpenShiftPageState extends State<OpenShiftPage> {
     final state = widget.state;
     return Scaffold(
       appBar: AppBar(title: Text('Halo, ${state.staff!.name}'), actions: [
-        TextButton(onPressed: state.logout, child: const Text('Ganti staf')),
+        // Warna TextButton bawaan (biru tua) tidak terbaca di header biru.
+        TextButton.icon(
+          style: TextButton.styleFrom(foregroundColor: Theme.of(context).appBarTheme.foregroundColor),
+          onPressed: state.logout,
+          icon: const Icon(Icons.switch_account),
+          label: const Text('Ganti staf'),
+        ),
         PopupMenuButton<String>(
           onSelected: (_) => _reset(),
-          itemBuilder: (_) => const [PopupMenuItem(value: 'reset', child: Text('Reset device'))],
+          itemBuilder: (_) => const [
+            PopupMenuItem(
+              value: 'reset',
+              child: Row(children: [Icon(Icons.phonelink_erase, color: Sky.c700), SizedBox(width: 12), Text('Reset device')]),
+            ),
+          ],
         ),
       ]),
       body: ListView(padding: const EdgeInsets.all(24), children: [
-        if (state.needsUpdate)
+        if (state.needsUpdate) ...[
           const Card(
             child: ListTile(
               leading: Icon(Icons.system_update),
@@ -186,17 +253,24 @@ class _OpenShiftPageState extends State<OpenShiftPage> {
               subtitle: Text('Update aplikasi dulu sebelum membuka shift baru.'),
             ),
           ),
-        Text('Outlet: ${state.snapshot!.outlet.name}', style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 8),
-        const Text('Hitung uang modal di laci/kantong, lalu buka shift.'),
+          const SizedBox(height: 16),
+        ],
+        Card(
+          child: ListTile(
+            leading: const Icon(Icons.storefront),
+            title: Text(state.snapshot!.outlet.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+            subtitle: const Text('Hitung uang modal di laci/kantong, lalu buka shift.'),
+          ),
+        ),
         const SizedBox(height: 16),
         // Tanpa autofocus: halaman ini juga dibangun di belakang rekap tutup shift, dan keyboard tidak boleh muncul di sana.
         MoneyField(controller: _cash, label: 'Modal awal'),
         const SizedBox(height: 16),
-        FilledButton(
+        FilledButton.icon(
           style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(56)),
           onPressed: _busy || state.needsUpdate ? null : _open,
-          child: const Text('Buka shift', style: TextStyle(fontSize: 20)),
+          icon: const Icon(Icons.play_arrow),
+          label: const Text('Buka shift', style: TextStyle(fontSize: 20)),
         ),
       ]),
       bottomNavigationBar: SafeArea(child: SyncStatusBar(state)),

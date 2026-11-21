@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kasir/ui/theme.dart';
 import 'package:kasir/ui/widgets.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -26,6 +27,23 @@ void main() {
     await tester.pumpAndSettle();
     expect(result, '123490');
     expect(find.text('PIN Andi'), findsNothing);
+  });
+
+  testWidgets('tombol Batal di dialog PIN tetap satu baris di layar 360 dp', (tester) async {
+    tester.view.physicalSize = const Size(720, 1600);
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(MaterialApp(
+      theme: kasirTheme(),
+      home: Builder(
+        builder: (context) => TextButton(onPressed: () => askPin(context, 'PIN Andi'), child: const Text('buka')),
+      ),
+    ));
+    await tester.tap(find.text('buka'));
+    await tester.pumpAndSettle();
+    // Di HP 360 dp tombolnya cuma ~69 dp; padding bawaan 24 dp kiri-kanan memecah "Batal" jadi "B / at".
+    // Tingginya harus sama dengan tombol angka yang pasti satu baris.
+    expect(tester.getSize(find.text('Batal')).height, tester.getSize(find.text('1')).height);
   });
 
   testWidgets('kolom uang hanya menerima angka', (tester) async {

@@ -56,11 +56,14 @@ class _PrinterPageState extends State<PrinterPage> {
         builder: (context, _) => Scaffold(
           appBar: AppBar(title: const Text('Printer')),
           body: ListView(padding: const EdgeInsets.all(16), children: [
-            ListTile(
-              leading: const Icon(Icons.print),
-              title: Text(printer.name ?? 'Printer belum dipilih'),
-              subtitle: Text(printer.address ?? 'Pilih dari printer yang sudah di-pair'),
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.print),
+                title: Text(printer.name ?? 'Printer belum dipilih'),
+                subtitle: Text(printer.address ?? 'Pilih dari printer yang sudah di-pair'),
+              ),
             ),
+            const SizedBox(height: 12),
             SegmentedButton<int>(
               segments: const [ButtonSegment(value: 32, label: Text('58 mm')), ButtonSegment(value: 48, label: Text('80 mm'))],
               selected: {printer.width},
@@ -72,17 +75,26 @@ class _PrinterPageState extends State<PrinterPage> {
               onChanged: printer.setAutoPrint,
             ),
             const SizedBox(height: 8),
-            OutlinedButton(onPressed: _loadPaired, child: const Text('Tampilkan printer yang sudah di-pair')),
+            OutlinedButton.icon(
+              onPressed: _loadPaired,
+              icon: const Icon(Icons.bluetooth_searching),
+              label: const Text('Tampilkan printer yang sudah di-pair'),
+            ),
             if (_error != null) Padding(padding: const EdgeInsets.all(8), child: Text(_error!)),
             for (final d in _devices)
               ListTile(
+                leading: const Icon(Icons.bluetooth),
                 title: Text(d.name),
                 subtitle: Text(d.address),
                 trailing: d.address == printer.address ? const Icon(Icons.check) : null,
                 onTap: () => printer.choose(d),
               ),
             const SizedBox(height: 16),
-            FilledButton(onPressed: printer.address == null ? null : _testPrint, child: const Text('Cetak tes')),
+            FilledButton.icon(
+              onPressed: printer.address == null ? null : _testPrint,
+              icon: const Icon(Icons.print),
+              label: const Text('Cetak tes'),
+            ),
           ]),
         ),
       );

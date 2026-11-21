@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Biru langit, sama dengan Sky.c500 di lib/ui/theme.dart. Dipakai ikon app dan splash. -->
+    <color name="ic_launcher_background">#0EA5E9</color>
+</resources>

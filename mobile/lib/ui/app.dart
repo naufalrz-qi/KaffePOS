@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import '../app/app_state.dart';
 import 'pos_page.dart';
 import 'start_pages.dart';
+import 'theme.dart';
 
 /// Android 15 memaksa edge-to-edge: konten digambar sampai ke bawah tombol navigasi sistem.
 /// Dipasang di MaterialApp.builder supaya SEMUA halaman, dialog, dan sheet tetap di atasnya.
@@ -20,7 +21,7 @@ class KasirApp extends StatelessWidget {
   Widget build(BuildContext context) => MaterialApp(
         title: 'KaffePOS Kasir',
         debugShowCheckedModeBanner: false,
-        theme: ThemeData(colorSchemeSeed: const Color(0xFF6F4E37)),
+        theme: kasirTheme(),
         builder: keepAboveSystemBars,
         home: ListenableBuilder(
           listenable: state,

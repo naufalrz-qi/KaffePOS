@@ -3,6 +3,11 @@ import 'package:material_ui/material_ui.dart';
 import '../app/app_state.dart';
 import '../core/format.dart';
 import '../data/store.dart';
+import 'theme.dart';
+import 'widgets.dart';
+
+const _offlineBg = Color(0xFFFEF3C7); // amber-100
+const _offlineFg = Color(0xFF78350F); // amber-900, kontras 8:1 di atas amber-100
 
 /// Indikator sync yang selalu terlihat + peringatan (PRD K-27..K-29). Ketuk untuk sync sekarang.
 class SyncStatusBar extends StatelessWidget {
@@ -21,24 +26,29 @@ class SyncStatusBar extends StatelessWidget {
       if (state.rejectedCount > 0) '${state.rejectedCount} data ditolak server. Lihat menu Masalah sync.',
       if (state.needsUpdate) 'Versi aplikasi terlalu lama. Update sebelum buka shift berikutnya.',
     ];
+    // Offline tetap kuning, bukan biru, supaya langsung terlihat beda.
+    final fg = state.online ? Sky.c800 : _offlineFg;
     return Material(
-      color: state.online ? Colors.green.shade50 : Colors.orange.shade50,
+      color: state.online ? Sky.c100 : _offlineBg,
       child: InkWell(
         onTap: state.syncNow,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(children: [
-              Icon(state.online ? Icons.cloud_done : Icons.cloud_off, size: 18),
-              const SizedBox(width: 6),
-              Text(state.online ? 'Online' : 'Offline'),
-              const Spacer(),
-              Text('Menunggu ${state.pending}'),
-              const SizedBox(width: 12),
-              Text(last == null ? 'Belum pernah sync' : 'Sync ${jam(outletTime(last, tz))}'),
+          child: DefaultTextStyle.merge(
+            style: TextStyle(color: fg),
+            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                Icon(state.online ? Icons.cloud_done : Icons.cloud_off, size: 18, color: fg),
+                const SizedBox(width: 6),
+                Text(state.online ? 'Online' : 'Offline', style: const TextStyle(fontWeight: FontWeight.w600)),
+                const Spacer(),
+                Text('Menunggu ${state.pending}'),
+                const SizedBox(width: 12),
+                Text(last == null ? 'Belum pernah sync' : 'Sync ${jam(outletTime(last, tz))}'),
+              ]),
+              for (final w in warnings) Text(w, style: TextStyle(color: Theme.of(context).colorScheme.error)),
             ]),
-            for (final w in warnings) Text(w, style: const TextStyle(color: Colors.red)),
-          ]),
+          ),
         ),
       ),
     );
@@ -58,7 +68,7 @@ class SyncProblemsPage extends StatelessWidget {
           future: state.store.rejected(),
           builder: (context, result) {
             final rows = result.data ?? const <OutboxRow>[];
-            if (rows.isEmpty) return const Center(child: Text('Tidak ada data yang ditolak server.'));
+            if (rows.isEmpty) return const EmptyState(Icons.check_circle_outline, 'Tidak ada data yang ditolak server.');
             return ListView(children: [
               const ListTile(
                 title: Text('Data di bawah ditolak server dan tidak dikirim ulang. Foto layar ini dan laporkan ke owner.'),

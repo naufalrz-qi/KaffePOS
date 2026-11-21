@@ -5,6 +5,7 @@ import '../core/format.dart';
 import '../data/sales_store.dart';
 import '../data/snapshot.dart';
 import '../print/receipt.dart';
+import 'theme.dart';
 import 'widgets.dart';
 
 /// Riwayat transaksi di HP: shift berjalan + 7 hari (PRD K-15).
@@ -23,15 +24,21 @@ class HistoryPage extends StatelessWidget {
             builder: (context, result) {
               if (result.connectionState != ConnectionState.done) return const Center(child: CircularProgressIndicator());
               final rows = result.data ?? const <SaleRow>[];
-              if (rows.isEmpty) return const Center(child: Text('Belum ada transaksi'));
+              if (rows.isEmpty) return const EmptyState(Icons.receipt_long, 'Belum ada transaksi');
               final tz = state.snapshot!.outlet.timezone;
+              final error = Theme.of(context).colorScheme.error;
               return ListView(children: [
                 for (final s in rows)
                   ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: Sky.c100,
+                      foregroundColor: Sky.c700,
+                      child: Icon(paymentIcons[((s.payload['payments'] as List).first as Map)['method']] ?? Icons.receipt_long),
+                    ),
                     title: Text(s.receiptNo),
                     subtitle: Text('${tanggalJam(outletTime(s.createdAt, tz))}${s.shiftId == state.shift?.id ? ' · shift ini' : ''}'),
                     trailing: Text(s.voided ? 'VOID' : ribuan(s.total),
-                        style: TextStyle(fontSize: 16, color: s.voided ? Colors.red : null)),
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: s.voided ? error : null)),
                     onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => SaleDetailPage(state, s))),
                   ),
               ]);
@@ -55,20 +62,18 @@ class SaleDetailPage extends StatelessWidget {
     final canVoid = !sale.voided && sale.shiftId == state.shift?.id;
     return Scaffold(
       appBar: AppBar(title: Text(sale.receiptNo)),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Text(lines.join('\n'), style: const TextStyle(fontFamily: 'monospace', fontSize: 13)),
-      ),
+      body: ReceiptPaper(lines),
       bottomNavigationBar: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(12),
           child: Row(children: [
-            // Tanpa ikon: tiga tombol berikon terlalu sempit di HP (label "Bagikan" terpotong jadi dua baris).
-            Expanded(child: OutlinedButton(onPressed: () => _print(context), child: const Text('Cetak'))),
+            Expanded(child: StackedButton(icon: Icons.print_outlined, label: 'Cetak', onPressed: () => _print(context))),
             const SizedBox(width: 8),
-            Expanded(child: OutlinedButton(onPressed: () => shareLines(lines), child: const Text('Bagikan'))),
-            if (canVoid) const SizedBox(width: 8),
-            if (canVoid) Expanded(child: OutlinedButton(onPressed: () => _void(context), child: const Text('Void'))),
+            Expanded(child: StackedButton(icon: Icons.share, label: 'Bagikan', onPressed: () => shareLines(lines))),
+            if (canVoid) ...[
+              const SizedBox(width: 8),
+              Expanded(child: StackedButton(icon: Icons.block, label: 'Void', onPressed: () => _void(context))),
+            ],
           ]),
         ),
       ),

@@ -2,8 +2,85 @@ import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:share_plus/share_plus.dart';
 
+import 'theme.dart';
+
 /// Angka uang dari kolom input (kosong = 0).
 int parseMoney(String text) => int.tryParse(text) ?? 0;
+
+/// Ikon per metode bayar, pasangan `paymentLabels`.
+const paymentIcons = {
+  'CASH': Icons.payments_outlined,
+  'QRIS': Icons.qr_code_2,
+  'TRANSFER': Icons.account_balance_outlined,
+  'EWALLET': Icons.account_balance_wallet_outlined,
+};
+
+/// Pengganti daftar kosong: ikon besar dan keterangan.
+class EmptyState extends StatelessWidget {
+  const EmptyState(this.icon, this.message, {super.key});
+
+  final IconData icon;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Icon(icon, size: 64, color: Sky.c500),
+            const SizedBox(height: 12),
+            Text(message, textAlign: TextAlign.center, style: const TextStyle(fontSize: 16, color: Sky.c800)),
+          ]),
+        ),
+      );
+}
+
+/// Tombol ikon di atas label untuk baris tiga tombol. Ikon di samping label membuat
+/// "Bagikan" turun ke baris kedua di layar 360 dp.
+class StackedButton extends StatelessWidget {
+  const StackedButton({super.key, required this.icon, required this.label, required this.onPressed, this.filled = false});
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onPressed;
+  final bool filled;
+
+  @override
+  Widget build(BuildContext context) {
+    const style = ButtonStyle(
+      padding: WidgetStatePropertyAll(EdgeInsets.symmetric(vertical: 10, horizontal: 4)),
+      iconSize: WidgetStatePropertyAll(24),
+    );
+    final child = Column(mainAxisSize: MainAxisSize.min, children: [
+      Icon(icon),
+      const SizedBox(height: 4),
+      FittedBox(fit: BoxFit.scaleDown, child: Text(label)),
+    ]);
+    return filled
+        ? FilledButton(style: style, onPressed: onPressed, child: child)
+        : OutlinedButton(style: style, onPressed: onPressed, child: child);
+  }
+}
+
+/// Struk atau rekap dengan huruf monospace di atas "kertas" putih.
+class ReceiptPaper extends StatelessWidget {
+  const ReceiptPaper(this.lines, {super.key});
+
+  final List<String> lines;
+
+  @override
+  Widget build(BuildContext context) => SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Center(
+          child: Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(lines.join('\n'), style: const TextStyle(fontFamily: 'monospace', fontSize: 13)),
+            ),
+          ),
+        ),
+      );
+}
 
 void snack(BuildContext context, String message) =>
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
@@ -94,7 +171,8 @@ class _PinDialogState extends State<_PinDialog> {
         content: SizedBox(
           width: 300,
           child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Text('●' * _pin.length + '○' * (6 - _pin.length), style: const TextStyle(fontSize: 28, letterSpacing: 8)),
+            Text('●' * _pin.length + '○' * (6 - _pin.length),
+                style: TextStyle(fontSize: 28, letterSpacing: 8, color: Theme.of(context).colorScheme.primary)),
             const SizedBox(height: 12),
             for (final row in const [
               ['1', '2', '3'],
@@ -109,11 +187,17 @@ class _PinDialogState extends State<_PinDialog> {
                       padding: const EdgeInsets.all(4),
                       child: SizedBox(
                         height: 56,
+                        // Tanpa padding bawaan 24 dp kiri-kanan: di HP 360 dp tombolnya cuma ~69 dp
+                        // dan "Batal" pecah jadi dua baris.
                         child: FilledButton.tonal(
+                          style: FilledButton.styleFrom(padding: EdgeInsets.zero),
                           onPressed: () => _tap(key),
                           child: key == 'hapus'
                               ? const Icon(Icons.backspace_outlined)
-                              : Text(key == 'batal' ? 'Batal' : key, style: const TextStyle(fontSize: 22)),
+                              : FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Text(key == 'batal' ? 'Batal' : key, style: const TextStyle(fontSize: 22)),
+                                ),
                         ),
                       ),
                     ),

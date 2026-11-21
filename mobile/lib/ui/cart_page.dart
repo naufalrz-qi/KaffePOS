@@ -5,6 +5,7 @@ import '../app/app_state.dart';
 import '../core/cart.dart';
 import '../core/format.dart';
 import 'payment_page.dart';
+import 'theme.dart';
 import 'widgets.dart';
 
 /// Keranjang: ubah qty, catatan, diskon item/transaksi, nama pelanggan (PRD K-07..K-10).
@@ -33,11 +34,14 @@ class CartPage extends StatelessWidget {
                     if (l.discount > 0) 'Diskon ${ribuan(l.discount)}',
                     '${ribuan(l.unitPrice)} × ${l.qty} = ${ribuan(l.total)}',
                   ].join('\n')),
-                  trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-                    IconButton(onPressed: () => cart.setQty(l, l.qty - 1), icon: const Icon(Icons.remove_circle_outline)),
-                    Text('${l.qty}', style: const TextStyle(fontSize: 18)),
-                    IconButton(onPressed: () => cart.setQty(l, l.qty + 1), icon: const Icon(Icons.add_circle_outline)),
-                  ]),
+                  trailing: DecoratedBox(
+                    decoration: const BoxDecoration(color: Sky.c100, borderRadius: BorderRadius.all(Radius.circular(999))),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      IconButton(onPressed: () => cart.setQty(l, l.qty - 1), icon: const Icon(Icons.remove)),
+                      Text('${l.qty}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      IconButton(onPressed: () => cart.setQty(l, l.qty + 1), icon: const Icon(Icons.add)),
+                    ]),
+                  ),
                   onTap: () => _lineActions(context, l),
                 ),
               const Divider(),
@@ -54,21 +58,32 @@ class CartPage extends StatelessWidget {
                 title: Text(cart.orderDiscount > 0 ? 'Diskon transaksi ${ribuan(cart.orderDiscount)}' : 'Diskon transaksi'),
                 onTap: () => _discount(context, null),
               ),
-              _amount('Subtotal', t.subtotal),
-              if (cart.orderDiscount > 0) _amount('Diskon', -cart.orderDiscount),
-              if (outlet.taxEnabled) _amount(outlet.taxInclusive ? 'Termasuk pajak' : 'Pajak', t.taxTotal),
-              if (t.rounding != 0) _amount('Pembulatan', t.rounding),
-              _amount('Total', t.total, bold: true),
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Card(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Column(children: [
+                      _amount('Subtotal', t.subtotal),
+                      if (cart.orderDiscount > 0) _amount('Diskon', -cart.orderDiscount),
+                      if (outlet.taxEnabled) _amount(outlet.taxInclusive ? 'Termasuk pajak' : 'Pajak', t.taxTotal),
+                      if (t.rounding != 0) _amount('Pembulatan', t.rounding),
+                      _amount('Total', t.total, bold: true),
+                    ]),
+                  ),
+                ),
+              ),
             ]),
             bottomNavigationBar: SafeArea(
               child: Padding(
                 padding: const EdgeInsets.all(12),
-                child: FilledButton(
+                child: FilledButton.icon(
                   style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(56)),
                   onPressed: cart.isEmpty
                       ? null
                       : () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => PaymentPage(state))),
-                  child: Text('Bayar ${rp(t.total)}', style: const TextStyle(fontSize: 20)),
+                  icon: const Icon(Icons.payments_outlined),
+                  label: Text('Bayar ${rp(t.total)}', style: const TextStyle(fontSize: 20)),
                 ),
               ),
             ),

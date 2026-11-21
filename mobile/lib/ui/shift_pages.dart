@@ -4,6 +4,7 @@ import '../app/app_state.dart';
 import '../core/format.dart';
 import '../data/sales_store.dart';
 import '../print/receipt.dart';
+import 'theme.dart';
 import 'widgets.dart';
 
 /// Kas masuk/keluar selama shift, mis. beli es batu (PRD K-04).
@@ -86,26 +87,39 @@ class _CloseShiftPageState extends State<CloseShiftPage> {
           return Scaffold(
             appBar: AppBar(title: const Text('Tutup shift')),
             body: ListView(padding: const EdgeInsets.all(16), children: [
-              _row('Modal awal', r.openingCash),
-              _row('Penjualan tunai', r.cashSales),
-              _row('Kas masuk', r.cashIn),
-              _row('Kas keluar', -r.cashOut),
-              _row('Kas seharusnya', r.expected, bold: true),
-              Text('${r.salesCount} transaksi · total ${rp(r.salesTotal)}'),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(children: [
+                    _row('Modal awal', r.openingCash),
+                    _row('Penjualan tunai', r.cashSales),
+                    _row('Kas masuk', r.cashIn),
+                    _row('Kas keluar', -r.cashOut),
+                    const Divider(),
+                    _row('Kas seharusnya', r.expected, bold: true),
+                  ]),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text('${r.salesCount} transaksi · total ${rp(r.salesTotal)}', style: const TextStyle(color: Sky.c700)),
               const SizedBox(height: 16),
               MoneyField(controller: _counted, label: 'Uang fisik dihitung', onChanged: (_) => setState(() {})),
               const SizedBox(height: 8),
               if (_counted.text.isNotEmpty)
                 Text('Selisih ${rp(counted - r.expected)}',
-                    style: TextStyle(fontSize: 22, color: counted == r.expected ? Colors.green : Colors.red)),
+                    style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: counted == r.expected ? Colors.green.shade800 : Theme.of(context).colorScheme.error)),
             ]),
             bottomNavigationBar: SafeArea(
               child: Padding(
                 padding: const EdgeInsets.all(12),
-                child: FilledButton(
+                child: FilledButton.icon(
                   style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(56)),
                   onPressed: _busy || _counted.text.isEmpty ? null : () => _close(r, counted),
-                  child: const Text('Tutup shift', style: TextStyle(fontSize: 20)),
+                  icon: const Icon(Icons.lock_clock),
+                  label: const Text('Tutup shift', style: TextStyle(fontSize: 20)),
                 ),
               ),
             ),
@@ -146,31 +160,30 @@ class ShiftClosedPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(title: const Text('Shift ditutup'), automaticallyImplyLeading: false),
-        body: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Text(lines.join('\n'), style: const TextStyle(fontFamily: 'monospace', fontSize: 13)),
-        ),
+        body: ReceiptPaper(lines),
         bottomNavigationBar: SafeArea(
           child: Padding(
             padding: const EdgeInsets.all(12),
             child: Row(children: [
-              // Tanpa ikon: tiga tombol berikon terlalu sempit di HP.
               Expanded(
-                child: OutlinedButton(
+                child: StackedButton(
+                  icon: Icons.print_outlined,
+                  label: 'Cetak',
                   onPressed: () async {
                     final error = await state.printer.printLines(lines);
                     if (context.mounted) snack(context, error ?? 'Rekap dicetak');
                   },
-                  child: const Text('Cetak'),
                 ),
               ),
               const SizedBox(width: 8),
-              Expanded(child: OutlinedButton(onPressed: () => shareLines(lines), child: const Text('Bagikan'))),
+              Expanded(child: StackedButton(icon: Icons.share, label: 'Bagikan', onPressed: () => shareLines(lines))),
               const SizedBox(width: 8),
               Expanded(
-                child: FilledButton(
+                child: StackedButton(
+                  icon: Icons.check,
+                  label: 'Selesai',
+                  filled: true,
                   onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
-                  child: const Text('Selesai'),
                 ),
               ),
             ]),
