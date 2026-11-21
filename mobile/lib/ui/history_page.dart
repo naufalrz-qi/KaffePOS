@@ -63,15 +63,10 @@ class SaleDetailPage extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.all(12),
           child: Row(children: [
-            Expanded(
-              child: OutlinedButton.icon(
-                  onPressed: () => _print(context), icon: const Icon(Icons.print), label: const Text('Cetak')),
-            ),
+            // Tanpa ikon: tiga tombol berikon terlalu sempit di HP (label "Bagikan" terpotong jadi dua baris).
+            Expanded(child: OutlinedButton(onPressed: () => _print(context), child: const Text('Cetak'))),
             const SizedBox(width: 8),
-            Expanded(
-              child: OutlinedButton.icon(
-                  onPressed: () => shareLines(lines), icon: const Icon(Icons.share), label: const Text('Bagikan')),
-            ),
+            Expanded(child: OutlinedButton(onPressed: () => shareLines(lines), child: const Text('Bagikan'))),
             if (canVoid) const SizedBox(width: 8),
             if (canVoid) Expanded(child: OutlinedButton(onPressed: () => _void(context), child: const Text('Void'))),
           ]),

@@ -190,7 +190,8 @@ class _OpenShiftPageState extends State<OpenShiftPage> {
         const SizedBox(height: 8),
         const Text('Hitung uang modal di laci/kantong, lalu buka shift.'),
         const SizedBox(height: 16),
-        MoneyField(controller: _cash, label: 'Modal awal', autofocus: true),
+        // Tanpa autofocus: halaman ini juga dibangun di belakang rekap tutup shift, dan keyboard tidak boleh muncul di sana.
+        MoneyField(controller: _cash, label: 'Modal awal'),
         const SizedBox(height: 16),
         FilledButton(
           style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(56)),

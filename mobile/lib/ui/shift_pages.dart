@@ -154,21 +154,18 @@ class ShiftClosedPage extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.all(12),
             child: Row(children: [
+              // Tanpa ikon: tiga tombol berikon terlalu sempit di HP.
               Expanded(
-                child: OutlinedButton.icon(
+                child: OutlinedButton(
                   onPressed: () async {
                     final error = await state.printer.printLines(lines);
                     if (context.mounted) snack(context, error ?? 'Rekap dicetak');
                   },
-                  icon: const Icon(Icons.print),
-                  label: const Text('Cetak'),
+                  child: const Text('Cetak'),
                 ),
               ),
               const SizedBox(width: 8),
-              Expanded(
-                child: OutlinedButton.icon(
-                    onPressed: () => shareLines(lines), icon: const Icon(Icons.share), label: const Text('Bagikan')),
-              ),
+              Expanded(child: OutlinedButton(onPressed: () => shareLines(lines), child: const Text('Bagikan'))),
               const SizedBox(width: 8),
               Expanded(
                 child: FilledButton(

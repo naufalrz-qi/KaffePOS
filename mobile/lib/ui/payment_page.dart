@@ -40,7 +40,8 @@ class _PaymentPageState extends State<PaymentPage> {
         ),
         const SizedBox(height: 16),
         if (cash) ...[
-          MoneyField(controller: _tendered, label: 'Uang diterima', autofocus: true, onChanged: (_) => setState(() {})),
+          // Tanpa autofocus: keyboard akan menutupi tombol Selesai, padahal kasir lebih sering memakai nominal cepat.
+          MoneyField(controller: _tendered, label: 'Uang diterima', onChanged: (_) => setState(() {})),
           const SizedBox(height: 8),
           Wrap(spacing: 8, runSpacing: 8, children: [
             for (final v in quickAmounts(total))
