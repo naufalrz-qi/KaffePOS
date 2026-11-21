@@ -4,6 +4,12 @@ import '../app/app_state.dart';
 import 'pos_page.dart';
 import 'start_pages.dart';
 
+/// Android 15 memaksa edge-to-edge: konten digambar sampai ke bawah tombol navigasi sistem.
+/// Dipasang di MaterialApp.builder supaya SEMUA halaman, dialog, dan sheet tetap di atasnya.
+/// Bagian atas tidak disentuh karena sudah ditangani AppBar.
+Widget keepAboveSystemBars(BuildContext context, Widget? child) =>
+    SafeArea(top: false, child: child ?? const SizedBox.shrink());
+
 /// Halaman utama dipilih dari state: aktivasi → unduh data → login → buka shift → jualan.
 class KasirApp extends StatelessWidget {
   const KasirApp(this.state, {super.key});
@@ -15,6 +21,7 @@ class KasirApp extends StatelessWidget {
         title: 'KaffePOS Kasir',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(colorSchemeSeed: const Color(0xFF6F4E37)),
+        builder: keepAboveSystemBars,
         home: ListenableBuilder(
           listenable: state,
           builder: (context, _) {
