@@ -27,7 +27,7 @@ class SyncStatusBar extends StatelessWidget {
         onTap: state.syncNow,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
               Icon(state.online ? Icons.cloud_done : Icons.cloud_off, size: 18),
               const SizedBox(width: 6),

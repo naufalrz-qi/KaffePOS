@@ -33,4 +33,13 @@ void main() {
     expect(find.text('Sync 10:05'), findsOneWidget);
     expect(find.textContaining('dicabut'), findsNothing);
   });
+
+  testWidgets('bar status sebagai bottomNavigationBar setinggi isinya, tidak memenuhi layar', (tester) async {
+    final store = (await tester.runAsync(memoryStore))!;
+    final state = AppState(store: store, api: Api('http://server/api/v1'), autoSync: false);
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(body: const Text('isi halaman'), bottomNavigationBar: SyncStatusBar(state)),
+    ));
+    expect(tester.getSize(find.byType(SyncStatusBar)).height, lessThan(100));
+  });
 }
