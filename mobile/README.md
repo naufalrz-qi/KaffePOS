@@ -41,3 +41,12 @@ Catatan:
 
 ## Printer
 Daftar printer yang sudah diuji ada di `docs/printer.md`.
+
+## Kendala setup yang pernah terjadi
+- **Build gagal "Android sdkmanager did not install NDK 28.2.13676358"**: Android CLI baru memakai nama paket `ndk/<versi>`, sedangkan Gradle mencari `ndk;<versi>`. Pasang manual:
+  ```powershell
+  & "$env:LOCALAPPDATA\Android\Sdk\cmdline-tools\latest\bin\android.exe" sdk install ndk/28.2.13676358
+  ```
+  NDK wajib karena plugin `jni` mengompilasi kode C.
+- **Build gagal "Could not close incremental caches"** di Kotlin: sudah diatasi dengan `kotlin.incremental=false` di `android/gradle.properties`.
+- **Uji di HP:** nyalakan Opsi pengembang → Tetap aktif, supaya layar tidak terkunci saat build/install.
