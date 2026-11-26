@@ -66,7 +66,7 @@ def test_excel_download(owner_client, toko):
 
 def test_home_shows_greeting_and_device_section(owner_client, toko):
     html = owner_client.get("/").content.decode()
-    assert "Pak Owner" in html and "Device" in html
+    assert "Pak Owner" in html and "Per outlet" in html
 
 
 def test_audit_page_lists_entries_owner_only(owner_client, tctx, owner):
@@ -84,3 +84,19 @@ def test_audit_filters_by_action_and_wib_date(owner_client, tctx, owner):
     assert "log-hari-ini" in html and "log-kemarin" not in html  # 17:30 UTC = 00:30 WIB tgl 19
     html = owner_client.get("/audit/?aksi=update").content.decode()
     assert "log-kemarin" in html and "log-hari-ini" not in html
+
+
+def test_manager_excel_scoped_to_own_outlet(manager_client, toko):
+    assert manager_client.get(f"/laporan/excel/{Q}&outlet={toko.pk}").status_code == 404
+    r = manager_client.get("/laporan/excel/" + Q)
+    assert load_workbook(io.BytesIO(r.content))["Ringkasan"]["B4"].value == 30000
+
+
+@pytest.mark.parametrize("q", ["dari=2026-02-30", "sampai=9999-12-31"])
+def test_audit_bad_dates_do_not_crash(owner_client, q):
+    assert owner_client.get("/audit/?" + q).status_code == 200
+
+
+def test_invalid_staf_shows_error_without_numbers(owner_client, toko):
+    html = owner_client.get("/laporan/" + Q + "&staf=abc").content.decode()
+    assert "errorlist" in html and "107.000" not in html

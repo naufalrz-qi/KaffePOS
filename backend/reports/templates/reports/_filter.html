@@ -3,12 +3,12 @@
   <div class="grid">
     <label>Dari {{ form.dari }}{{ form.dari.errors }}</label>
     <label>Sampai {{ form.sampai }}{{ form.sampai.errors }}</label>
-    <label>Outlet {{ form.outlet }}</label>
-    <label>Staf {{ form.staf }}</label>
+    <label>Outlet {{ form.outlet }}{{ form.outlet.errors }}</label>
+    <label>Staf {{ form.staf }}{{ form.staf.errors }}</label>
   </div>
   <p>
     <button type="submit">Tampilkan</button>
     <a role="button" class="secondary" href="{% url 'laporan_excel' %}?{{ query }}">Unduh Excel</a>
   </p>
-  <p>{% for label, dari, sampai in presets %}<a href="?dari={{ dari|date:'Y-m-d' }}&amp;sampai={{ sampai|date:'Y-m-d' }}{% if form.outlet.value %}&amp;outlet={{ form.outlet.value }}{% endif %}{% if form.staf.value %}&amp;staf={{ form.staf.value }}{% endif %}">{{ label }}</a>{% if not forloop.last %} · {% endif %}{% endfor %}</p>
+  <p>{% for label, dari, sampai in presets %}<a href="?dari={{ dari|date:'Y-m-d' }}&amp;sampai={{ sampai|date:'Y-m-d' }}{% if form.outlet.value %}&amp;outlet={{ form.outlet.value|urlencode }}{% endif %}{% if form.staf.value %}&amp;staf={{ form.staf.value|urlencode }}{% endif %}">{{ label }}</a>{% if not forloop.last %} · {% endif %}{% endfor %}</p>
 </form>

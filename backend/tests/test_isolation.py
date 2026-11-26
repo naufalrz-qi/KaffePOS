@@ -6,9 +6,10 @@ from django.urls import reverse
 from django.utils import timezone
 
 from catalog.models import Category, ModifierGroup, ModifierOption, Product
-from core.models import Device, Outlet, Tenant, User, token_hash
+from core.models import AuditLog, Device, Outlet, Tenant, User, token_hash
 from core.pins import check_pin
 from core.tenancy import tenant_context
+from tests.factories import make_sale, make_shift, make_staff
 
 LIST_PAGES = ["outlet_list", "kategori_list", "produk_list", "modifier_list", "opsi_list", "staf_list", "device_list"]
 
@@ -61,9 +62,23 @@ def test_setup_tenant_creates_business_and_owner(db):
 
 
 def test_reports_never_show_other_tenant(client, two_tenants):
+    b = two_tenants["b"]
+    with tenant_context(b["device"].tenant_id):
+        staff = make_staff(b["device"].tenant, b["objects"]["outlet"], "RAHASIA Kasir")
+        shift = make_shift(b["objects"]["outlet"], staff, day=timezone.localdate())
+        make_sale(shift, 55000, items=(("RAHASIA Latte", "RAHASIA Kat", 1),))
+        AuditLog.objects.create(action="update", detail="RAHASIA diubah")
+        Device.objects.filter(pk=b["device"].pk).update(activated_at=timezone.now(), last_sync_at=timezone.now())
+    paths = ["/", "/laporan/", "/laporan/produk/", "/laporan/shift/", "/laporan/void-diskon/", "/audit/"]
     client.force_login(two_tenants["owner_a"])
-    for path in ["/", "/laporan/", "/laporan/produk/", "/laporan/shift/", "/laporan/void-diskon/", "/audit/"]:
+    for path in paths:
         r = client.get(path)
         assert r.status_code == 200 and "RAHASIA" not in r.content.decode(), path
-    b_outlet = two_tenants["b"]["objects"]["outlet"]
+    # sanity: data yang sama terlihat oleh owner B
+    owner_b = User.objects.create_user(username="owner-b", password="rahasia-123", tenant=b["device"].tenant,
+                                       role=User.Role.OWNER, display_name="Owner B")
+    client.force_login(owner_b)
+    assert "RAHASIA Kasir" in client.get("/laporan/").content.decode()
+    client.force_login(two_tenants["owner_a"])
+    b_outlet = b["objects"]["outlet"]
     assert client.get(f"/laporan/?outlet={b_outlet.pk}").status_code == 404

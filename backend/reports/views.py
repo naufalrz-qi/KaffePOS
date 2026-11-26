@@ -95,11 +95,16 @@ class Audit(OwnerRequired, ListView):
         get = self.request.GET
         if get.get("aksi") in AuditLog.Action.values:
             logs = logs.filter(action=get["aksi"])
-        dari, sampai = parse_date(get.get("dari") or ""), parse_date(get.get("sampai") or "")
-        if dari:
-            logs = logs.filter(at__gte=_start_of(dari))
-        if sampai:
-            logs = logs.filter(at__lt=_start_of(sampai + timedelta(1)))
+        try:  # tanggal rusak / di luar jangkauan = tanpa filter
+            dari, sampai = parse_date(get.get("dari") or ""), parse_date(get.get("sampai") or "")
+            start = _start_of(dari) if dari else None
+            end = _start_of(sampai + timedelta(1)) if sampai else None
+        except (ValueError, OverflowError):
+            start = end = None
+        if start:
+            logs = logs.filter(at__gte=start)
+        if end:
+            logs = logs.filter(at__lt=end)
         return logs
 
     def get_context_data(self, **kwargs):
