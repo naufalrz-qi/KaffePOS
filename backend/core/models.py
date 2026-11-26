@@ -134,3 +134,29 @@ class Device(TenantScoped):
         self.activation_expires_at = timezone.now() + timedelta(minutes=15)
         self.save(update_fields=["activation_code", "activation_expires_at"])
         return self.activation_code
+
+
+class AuditLog(TenantScoped):
+    """Catatan perubahan penting (PRD W-05). Hanya ditambah, tidak pernah diubah/dihapus dari UI."""
+
+    class Action(models.TextChoices):
+        CREATE = "create", "Tambah data"
+        UPDATE = "update", "Ubah data"
+        DEVICE_CREATE = "device_create", "Device baru"
+        DEVICE_CODE = "device_code", "Kode aktivasi baru"
+        DEVICE_REVOKE = "device_revoke", "Device dicabut"
+        VOID = "void", "Void"
+        DISCOUNT = "discount", "Diskon"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid7, editable=False)
+    at = models.DateTimeField(default=timezone.now)
+    actor = models.ForeignKey("core.User", on_delete=models.PROTECT, null=True, related_name="+")
+    device = models.ForeignKey("core.Device", on_delete=models.PROTECT, null=True, related_name="+")
+    action = models.CharField(max_length=20, choices=Action.choices)
+    object_type = models.CharField(max_length=40, blank=True)
+    object_id = models.CharField(max_length=40, blank=True)
+    detail = models.CharField(max_length=500, blank=True)
+
+    class Meta:
+        indexes = [models.Index(fields=["tenant", "at"])]
+        ordering = ["-at"]
