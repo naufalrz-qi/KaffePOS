@@ -84,3 +84,21 @@ def test_voids_and_discounts_lists(data):
     sales = q.sales_between(data["outlets"], DAY, DAY)
     assert [r["nilai"] for r in q.voids(sales)] == [99000]
     assert [r["nilai"] for r in q.discounts(sales)] == [3000]
+
+
+def test_same_name_staff_and_outlets_stay_separate(tctx, outlet):
+    kemang = Outlet.objects.create(code="KMG", name=outlet.name, timezone="Asia/Jakarta")
+    a1, a2 = make_staff(tctx, outlet), make_staff(tctx, kemang)
+    make_sale(make_shift(outlet, a1), 10000)
+    make_sale(make_shift(kemang, a2), 20000)
+    sales = q.sales_between([outlet.pk, kemang.pk], DAY, DAY)
+    for fn in (q.by_staff, q.by_outlet):
+        rows = fn(sales)
+        assert len(rows) == 2 and sum(r["omzet"] for r in rows) == q.summary(sales)["omzet"] == 30000
+
+
+def test_average_rounds_half_up(tctx, outlet):
+    shift = make_shift(outlet, make_staff(tctx, outlet))
+    make_sale(shift, 1)
+    make_sale(shift, 2)
+    assert q.summary(q.sales_between([outlet.pk], DAY, DAY))["rata_rata"] == 2

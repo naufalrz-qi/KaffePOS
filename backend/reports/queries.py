@@ -1,5 +1,4 @@
 """Semua angka laporan & beranda (spec §4). Satu sumber untuk halaman dan Excel, jadi angkanya selalu sama."""
-from collections import defaultdict
 from datetime import timedelta
 from zoneinfo import ZoneInfo
 
@@ -27,9 +26,9 @@ def sales_between(outlet_ids, dari, sampai, staff=None):
 
 def sales_today(outlets):
     """Hari ini dihitung per zona waktu outlet (WIB/WITA/WIT)."""
-    cond = Q(pk__in=[])
+    cond, instant = Q(pk__in=[]), now()
     for outlet in outlets:
-        cond |= Q(outlet_id=outlet.pk, business_date=now().astimezone(ZoneInfo(outlet.timezone)).date())
+        cond |= Q(outlet_id=outlet.pk, business_date=instant.astimezone(ZoneInfo(outlet.timezone)).date())
     return Sale.objects.filter(cond)
 
 
@@ -38,13 +37,15 @@ def summary(sales):
     item = SaleItem.objects.filter(sale__in=_completed(sales)).aggregate(n=Sum("qty"))["n"] or 0
     void = sales.filter(status=Sale.Status.VOIDED).aggregate(n=Count("id"), v=Sum("total"))
     omzet, n = done["omzet"] or 0, done["transaksi"]
-    return {"omzet": omzet, "transaksi": n, "item": item, "rata_rata": round(omzet / n) if n else 0,
+    return {"omzet": omzet, "transaksi": n, "item": item, "rata_rata": (omzet * 2 + n) // (2 * n) if n else 0,
             "diskon": done["diskon"] or 0, "void_jumlah": void["n"], "void_nilai": void["v"] or 0}
 
 
-def _group(sales, field, label):
-    rows = (_completed(sales).values(field).annotate(omzet=Sum("total"), transaksi=Count("id")).order_by(field))
-    return [{"label": label(r[field]), "omzet": r["omzet"], "transaksi": r["transaksi"]} for r in rows]
+def _group(sales, fields, label):
+    """fields: nama kolom, atau tuple (id, nama) agar entitas bernama sama tidak tergabung; label dari kolom terakhir."""
+    fields = (fields,) if isinstance(fields, str) else fields
+    rows = _completed(sales).values(*fields).annotate(omzet=Sum("total"), transaksi=Count("id")).order_by(*fields)
+    return [{"label": label(r[fields[-1]]), "omzet": r["omzet"], "transaksi": r["transaksi"]} for r in rows]
 
 
 def by_day(sales):
@@ -52,11 +53,11 @@ def by_day(sales):
 
 
 def by_outlet(sales):
-    return sorted(_group(sales, "outlet__name", str), key=lambda r: -r["omzet"])
+    return sorted(_group(sales, ("outlet_id", "outlet__name"), str), key=lambda r: -r["omzet"])
 
 
 def by_staff(sales):
-    return sorted(_group(sales, "staff__display_name", str), key=lambda r: -r["omzet"])
+    return sorted(_group(sales, ("staff_id", "staff__display_name"), str), key=lambda r: -r["omzet"])
 
 
 def by_method(sales):
