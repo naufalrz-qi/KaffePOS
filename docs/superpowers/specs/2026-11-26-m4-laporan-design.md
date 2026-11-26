@@ -1,7 +1,14 @@
 # M4 Laporan — Desain
 
-Tanggal: 26 November 2026 · Status: disetujui per bagian di chat, menunggu review file ini.
+Tanggal: 26 November 2026 · Status: selesai diimplementasi, 26 November 2026.
 Sumber kebutuhan: PRD §8.1 (A-03), §8.3 (K-05, K-09), §8.4 (W-01, W-02, W-05); DESAIN-TEKNIS §7.5, §8.1, §12.
+
+Penyimpangan dari spec:
+- Excel memakai sheet Void dan Diskon terpisah.
+- Tema `pico.blue` menggantikan `pico.azure` (tidak ada di CDN).
+- Pilihan filter staf untuk manager dibatasi ke staf di outlet manager.
+- Kolom produk/kategori/modifier berjudul "Nilai item".
+- Rata-rata dibulatkan ke atas (half-up).
 
 ## 1. Tujuan
 

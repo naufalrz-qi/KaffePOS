@@ -133,7 +133,7 @@ KaffePOS/
 |---|---|---|
 | `sales_shift` | outlet_id, device_id, staff_id, opened_at, opening_cash, business_date, closed_at, counted_cash, expected_cash, received_at | index (tenant, business_date) |
 | `sales_cashmovement` | shift_id, staff_id, at, direction (IN/OUT), amount, note | index shift_id |
-| `sales_sale` | outlet_id, device_id, shift_id, staff_id, receipt_no, created_at, received_at, business_date, local_hour, customer_label, member_id, member_ref, subtotal, discount_total, discount_reason, tax_total, rounding, total, tax_enabled, tax_rate_bp, tax_inclusive, rounding_unit, status (COMPLETED/VOIDED), voided_at, voided_by_id, void_approved_by_id, void_reason, stamps_earned, flags | index (tenant, business_date, outlet_id), shift_id, receipt_no, member_id |
+| `sales_sale` | outlet_id, device_id, shift_id, staff_id, receipt_no, created_at, received_at, business_date, local_hour, customer_label, member_id, member_ref, subtotal, discount_total, discount_reason, tax_total, rounding, total, tax_enabled, tax_rate_bp, tax_inclusive, rounding_unit, status (COMPLETED/VOIDED), voided_at, voided_by_id, void_approved_by_id, void_reason, discount_approved_by_id, stamps_earned, flags | index (tenant, business_date, outlet_id), shift_id, receipt_no, member_id |
 | `sales_saleitem` | sale_id, product_id (tanpa FK), name, category_name, qty, unit_price, modifiers_total, discount, line_total, is_reward, earns_stamp, note | index sale_id |
 | `sales_saleitemmodifier` | sale_item_id, option_id (tanpa FK), group_name, name, price_delta | index sale_item_id |
 | `sales_payment` | sale_id, method (CASH/QRIS/TRANSFER/EWALLET), amount, tendered, change_amount, reference | index sale_id |
@@ -267,6 +267,7 @@ Contoh `sale.completed`:
 }
 ```
 - `member` berisi `{"code": …}` (QR di-scan / hasil lookup), `{"phone": "+62…"}` (diketik atau member baru), atau `null`.
+- `discount_approved_by_id` (opsional) = staf yang menyetujui diskon; disimpan di `sales_sale` dan tampil di laporan Void & diskon.
 - `pricing` adalah setting pajak & pembulatan yang dipakai HP saat transaksi. Dengan begitu server tetap bisa memeriksa hitungan walaupun setting outlet sudah berubah sejak itu.
 
 **Tanda (flag) pada penjualan.** Penjualan tetap diterima, tandanya muncul di dashboard:
@@ -434,6 +435,9 @@ Django templates + HTMX + satu file CSS ringan tanpa proses build (mis. Pico.css
 
 - Laporan dihitung langsung dari tabel penjualan (GROUP BY `business_date`, outlet, staf, produk). Tabel ringkasan baru ditambah kalau laporan mulai lambat.
 - Ekspor pakai `.xlsx` (`openpyxl`), bukan CSV. Excel dengan setting regional Indonesia memakai `;` sebagai pemisah, jadi CSV berkoma akan terbuka berantakan.
+- **Diimplementasi di M4** (app Django `reports`, tanpa model: `filters.py`, `queries.py`, `excel.py`, view + template). URL: `/` (beranda), `/laporan/` (ringkasan), `/laporan/produk/`, `/laporan/shift/`, `/laporan/void-diskon/`, `/laporan/excel/`, `/audit/`. Tema Pico: `pico.blue.min.css` (`pico.azure` tidak ada di CDN).
+- Akses: owner melihat semua outlet; manager hanya outlet di `User.outlets` (outlet lain → 404); halaman Kelola & audit untuk selain owner → 403.
+- Excel (`openpyxl`) berisi 12 sheet, termasuk sheet Void dan Diskon terpisah. Sel teks yang diawali `=`, `+`, `-`, atau `@` disimpan sebagai teks (cegah formula injection).
 - Halaman device: tombol "Tambah device" menampilkan kode aktivasi (teks + QR) yang berlaku 15 menit.
 
 ### 8.2 Kartu member (`member.<domain>`)
