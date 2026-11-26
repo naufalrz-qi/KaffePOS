@@ -84,3 +84,12 @@ def test_device_lifecycle_is_audited(owner_client, outlet):
     owner_client.post(f"/device/{device.pk}/", {"revoke": "1"})
     assert list(AuditLog.objects.order_by("at").values_list("action", flat=True)) == [
         "device_create", "device_code", "device_revoke"]
+
+
+def test_revoke_twice_audits_once_and_keeps_revoked_at(owner_client, outlet):
+    device = Device.objects.create(outlet=outlet, name="HP 3")
+    owner_client.post(f"/device/{device.pk}/", {"revoke": "1"})
+    first = Device.objects.get(pk=device.pk).revoked_at
+    owner_client.post(f"/device/{device.pk}/", {"revoke": "1"})
+    assert Device.objects.get(pk=device.pk).revoked_at == first
+    assert AuditLog.objects.filter(action="device_revoke").count() == 1

@@ -38,6 +38,13 @@ def staff_for(device, staff_id):
     return staff
 
 
+def approver_for(device, user_id):
+    """Penyetuju bersifat opsional: tidak dikenal -> None (tidak menolak transaksi)."""
+    if not user_id:
+        return None
+    return User.objects.filter(pk=user_id, tenant_id=device.tenant_id).first()
+
+
 def shift_for(device, shift_id):
     shift = Shift.objects.filter(pk=shift_id).first()
     if shift is None:
@@ -189,7 +196,9 @@ def sale_completed(device, data):
     if d.created_at > timezone.now() + timedelta(minutes=5):
         flags.append("clock_ahead")
     staff = staff_for(device, d.staff_id)
-    approver = staff_for(device, d.discount_approved_by_id) if d.discount_approved_by_id else None
+    approver = approver_for(device, d.discount_approved_by_id)
+    if d.discount_approved_by_id and approver is None:
+        flags.append("unknown_approver")  # metadata sekunder: penjualan tetap diterima
     sale = Sale.objects.create(
         id=d.sale_id, outlet_id=device.outlet_id, device=device, shift=shift,
         staff=staff, discount_approved_by=approver, receipt_no=d.receipt_no, created_at=d.created_at,
@@ -239,8 +248,10 @@ def sale_voided(device, data):
         return "duplicate"
     sale.status, sale.voided_at, sale.void_reason = Sale.Status.VOIDED, d.voided_at, d.reason
     sale.voided_by = staff_for(device, d.staff_id)
-    sale.void_approved_by = staff_for(device, d.approved_by_id) if d.approved_by_id else None
-    sale.save(update_fields=["status", "voided_at", "void_reason", "voided_by", "void_approved_by"])
+    sale.void_approved_by = approver_for(device, d.approved_by_id)
+    if d.approved_by_id and sale.void_approved_by is None:
+        sale.flags = ",".join(filter(None, [sale.flags, "unknown_approver"]))
+    sale.save(update_fields=["status", "voided_at", "void_reason", "voided_by", "void_approved_by", "flags"])
     approved = f", disetujui {sale.void_approved_by.display_name}" if sale.void_approved_by else ""
     record(AuditLog.Action.VOID, sale, actor=sale.voided_by, device=device,
            detail=f"{sale.receipt_no}: {rupiah(sale.total)} ({sale.void_reason}){approved}")

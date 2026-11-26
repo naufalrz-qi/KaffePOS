@@ -179,6 +179,27 @@ def test_old_app_without_approver_field_still_accepted(client, auth, kasir):
     assert not AuditLog.objects.filter(action="discount").exists()
 
 
+def test_unknown_discount_approver_does_not_reject_sale(client, auth, kasir):
+    sid, sale_id = uuid.uuid4(), uuid.uuid4()
+    _, ev = sale_event(sale_id, sid, kasir)
+    ev["discount_approved_by_id"] = str(uuid.uuid4())
+    statuses, _ = push(client, auth, shift_opened(sid, kasir), ("sale.completed", ev))
+    sale = Sale.objects.get(pk=sale_id)
+    assert statuses == ["ok", "ok"] and sale.discount_approved_by is None
+    assert "unknown_approver" in sale.flags
+
+
+def test_unknown_void_approver_does_not_reject_void(client, auth, kasir):
+    sid, sale_id = uuid.uuid4(), uuid.uuid4()
+    push(client, auth, shift_opened(sid, kasir), sale_event(sale_id, sid, kasir))
+    kind, ev = sale_voided(sale_id, kasir)
+    ev["approved_by_id"] = str(uuid.uuid4())
+    statuses, _ = push(client, auth, (kind, ev))
+    sale = Sale.objects.get(pk=sale_id)
+    assert statuses == ["ok"] and sale.status == Sale.Status.VOIDED and sale.void_approved_by is None
+    assert "unknown_approver" in sale.flags
+
+
 def test_void_is_audited_once(client, auth, kasir):
     sid, sale_id = uuid.uuid4(), uuid.uuid4()
     push(client, auth, shift_opened(sid, kasir), sale_event(sale_id, sid, kasir))

@@ -53,7 +53,7 @@ class DeviceDetail(OwnerRequired, DetailView):
 
     def post(self, request, pk):
         device = self.get_object()
-        if "revoke" in request.POST:
+        if "revoke" in request.POST and device.revoked_at is None:
             device.revoked_at = timezone.now()
             device.save(update_fields=["revoked_at"])
             record(AuditLog.Action.DEVICE_REVOKE, device, device.name, actor=request.user)

@@ -99,6 +99,6 @@ def test_same_name_staff_and_outlets_stay_separate(tctx, outlet):
 
 def test_average_rounds_half_up(tctx, outlet):
     shift = make_shift(outlet, make_staff(tctx, outlet))
-    make_sale(shift, 1)
     make_sale(shift, 2)
-    assert q.summary(q.sales_between([outlet.pk], DAY, DAY))["rata_rata"] == 2
+    make_sale(shift, 3)
+    assert q.summary(q.sales_between([outlet.pk], DAY, DAY))["rata_rata"] == 3  # 2,5 -> 3 (bukan 2)

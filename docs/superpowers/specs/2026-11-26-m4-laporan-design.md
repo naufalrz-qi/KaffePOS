@@ -1,6 +1,6 @@
 # M4 Laporan — Desain
 
-Tanggal: 26 November 2026 · Status: selesai diimplementasi, 26 November 2026.
+Tanggal: 26 November 2026 · Status: selesai dikode dan direview (26 November 2026); cek manual di browser HP/laptop dan transaksi diskon dari HP masih menunggu.
 Sumber kebutuhan: PRD §8.1 (A-03), §8.3 (K-05, K-09), §8.4 (W-01, W-02, W-05); DESAIN-TEKNIS §7.5, §8.1, §12.
 
 Penyimpangan dari spec:
