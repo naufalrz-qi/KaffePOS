@@ -4,3 +4,4 @@ django-ninja>=1.4
 tzdata
 pytest>=8
 pytest-django>=4.9
+openpyxl>=3.1
