@@ -13,7 +13,8 @@ from django.db.models import Sum
 from django.utils import timezone
 from pydantic import AwareDatetime, BaseModel, Field, ValidationError
 
-from core.models import User
+from core.audit import record, rupiah
+from core.models import AuditLog, User
 from sales.models import CashMovement, Payment, Sale, SaleItem, SaleItemModifier, Shift
 from sales.totals import compute_totals
 
@@ -166,6 +167,7 @@ class SaleCompleted(BaseModel):
     items: list[ItemIn] = Field(min_length=1)
     order_discount: int = Field(0, ge=0)
     discount_reason: str | None = Field(None, max_length=120)
+    discount_approved_by_id: UUID | None = None
     subtotal: int
     tax_total: int
     rounding: int
@@ -186,9 +188,11 @@ def sale_completed(device, data):
         flags.append("duplicate_receipt_no")
     if d.created_at > timezone.now() + timedelta(minutes=5):
         flags.append("clock_ahead")
+    staff = staff_for(device, d.staff_id)
+    approver = staff_for(device, d.discount_approved_by_id) if d.discount_approved_by_id else None
     sale = Sale.objects.create(
         id=d.sale_id, outlet_id=device.outlet_id, device=device, shift=shift,
-        staff=staff_for(device, d.staff_id), receipt_no=d.receipt_no, created_at=d.created_at,
+        staff=staff, discount_approved_by=approver, receipt_no=d.receipt_no, created_at=d.created_at,
         business_date=shift.business_date,
         local_hour=local_time(d.created_at, device.outlet.timezone).hour,
         customer_label=d.customer_label,
@@ -209,6 +213,10 @@ def sale_completed(device, data):
     for p in d.payments:
         Payment.objects.create(id=p.id, sale=sale, method=p.method, amount=p.amount, tendered=p.tendered,
                                change_amount=p.change, reference=p.reference or "")
+    if sale.discount_total > 0:
+        approved = f", disetujui {approver.display_name}" if approver else ""
+        record(AuditLog.Action.DISCOUNT, sale, actor=staff, device=device,
+               detail=f"{sale.receipt_no}: diskon {rupiah(sale.discount_total)} ({sale.discount_reason or '-'}){approved}")
     return "ok"
 
 
@@ -233,6 +241,9 @@ def sale_voided(device, data):
     sale.voided_by = staff_for(device, d.staff_id)
     sale.void_approved_by = staff_for(device, d.approved_by_id) if d.approved_by_id else None
     sale.save(update_fields=["status", "voided_at", "void_reason", "voided_by", "void_approved_by"])
+    approved = f", disetujui {sale.void_approved_by.display_name}" if sale.void_approved_by else ""
+    record(AuditLog.Action.VOID, sale, actor=sale.voided_by, device=device,
+           detail=f"{sale.receipt_no}: {rupiah(sale.total)} ({sale.void_reason}){approved}")
     return "ok"
 
 

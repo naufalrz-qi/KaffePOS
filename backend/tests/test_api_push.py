@@ -153,3 +153,36 @@ def test_shift_of_another_device_is_forbidden(client, auth, kasir, outlet):
                          opening_cash=0, business_date=timezone.localdate())
     statuses, body = push(client, auth, sale_event(uuid.uuid4(), sid, kasir))
     assert statuses == ["rejected"] and body["results"][0]["reason"] == "forbidden"
+
+
+from core.models import AuditLog  # noqa: E402
+
+
+def test_discount_is_audited_with_approver_once(client, auth, kasir, tctx):
+    manager = User.objects.create_user(username="sari", tenant=tctx, display_name="Bu Sari", role=User.Role.MANAGER)
+    sid, sale_id = uuid.uuid4(), uuid.uuid4()
+    _, ev = sale_event(sale_id, sid, kasir, total=40000)
+    ev.update(order_discount=6000, discount_reason="pelanggan tetap", discount_approved_by_id=str(manager.id))
+    ev["payments"][0]["amount"] = 40000
+    push(client, auth, shift_opened(sid, kasir), ("sale.completed", ev))
+    push(client, auth, ("sale.completed", ev))  # kirim ulang
+    sale = Sale.objects.get(pk=sale_id)
+    assert sale.discount_approved_by == manager
+    log = AuditLog.objects.get(action="discount")
+    assert log.actor == kasir and "6.000" in log.detail and "Bu Sari" in log.detail
+
+
+def test_old_app_without_approver_field_still_accepted(client, auth, kasir):
+    sid, sale_id = uuid.uuid4(), uuid.uuid4()
+    statuses, _ = push(client, auth, shift_opened(sid, kasir), sale_event(sale_id, sid, kasir))
+    assert statuses == ["ok", "ok"] and Sale.objects.get(pk=sale_id).discount_approved_by is None
+    assert not AuditLog.objects.filter(action="discount").exists()
+
+
+def test_void_is_audited_once(client, auth, kasir):
+    sid, sale_id = uuid.uuid4(), uuid.uuid4()
+    push(client, auth, shift_opened(sid, kasir), sale_event(sale_id, sid, kasir))
+    push(client, auth, sale_voided(sale_id, kasir))
+    push(client, auth, sale_voided(sale_id, kasir))
+    log = AuditLog.objects.get(action="void")
+    assert log.actor == kasir and "salah input" in log.detail and log.object_id == str(sale_id)

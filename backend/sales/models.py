@@ -60,6 +60,7 @@ class Sale(TenantScoped):
     subtotal = models.BigIntegerField()
     discount_total = models.BigIntegerField(default=0)
     discount_reason = models.CharField(max_length=120, blank=True)
+    discount_approved_by = models.ForeignKey(USER, on_delete=models.PROTECT, null=True, related_name="+")
     tax_total = models.BigIntegerField(default=0)
     rounding = models.BigIntegerField(default=0)
     total = models.BigIntegerField()
