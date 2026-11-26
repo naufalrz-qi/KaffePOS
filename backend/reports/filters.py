@@ -2,6 +2,7 @@
 from datetime import timedelta
 
 from django import forms
+from django.core.exceptions import ValidationError
 from django.http import Http404
 from django.utils import timezone
 
@@ -29,10 +30,18 @@ class ReportFilter(forms.Form):
         super().__init__(data)
         self.allowed = allowed_outlets(user)
         self.fields["outlet"].queryset = self.allowed
-        self.fields["staf"].queryset = User.in_tenant.exclude(role=User.Role.OWNER, pin_hash="").order_by("display_name")
+        staf = User.in_tenant.exclude(role=User.Role.OWNER, pin_hash="")
+        if user.role != User.Role.OWNER:
+            staf = staf.filter(outlets__in=self.allowed).distinct()
+        self.fields["staf"].queryset = staf.order_by("display_name")
         outlet_id = (data or {}).get("outlet")
-        if outlet_id and not self.allowed.filter(pk=outlet_id).exists():
-            raise Http404("Outlet tidak ditemukan")
+        if outlet_id:
+            try:
+                found = self.allowed.filter(pk=outlet_id).exists()
+            except (ValidationError, ValueError):
+                found = False
+            if not found:
+                raise Http404("Outlet tidak ditemukan")
 
     def clean(self):
         cleaned = super().clean()
