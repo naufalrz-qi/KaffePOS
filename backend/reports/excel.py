@@ -12,18 +12,23 @@ SHEETS = ["Ringkasan", "Harian", "Outlet", "Metode bayar", "Staf", "Per jam", "P
 RUPIAH = "#,##0"
 
 
-def _sheet(wb, title, header, rows, money_cols=()):
+def _sheet(wb, title, header, rows, money_cols=(), money_rows=()):
     ws = wb.create_sheet(title)
     ws.append(header)
     for cell in ws[1]:
         cell.font = Font(bold=True)
     for row in rows:
         ws.append(list(row))
+        for cell in ws[ws.max_row]:  # cegah formula injection: teks berawalan = + - @ tetap teks
+            if isinstance(cell.value, str) and cell.value[:1] in ("=", "+", "-", "@"):
+                cell.data_type = "s"
     for col in money_cols:
         for (cell,) in ws.iter_rows(min_row=2, min_col=col, max_col=col):
             cell.number_format = RUPIAH
+    for r in money_rows:
+        ws.cell(row=r, column=2).number_format = RUPIAH
     for col in ws.columns:
-        ws.column_dimensions[col[0].column_letter].width = max(12, max(len(str(c.value or "")) for c in col) + 2)
+        ws.column_dimensions[col[0].column_letter].width = min(60, max(12, max(len(str(c.value or "")) for c in col) + 2))
 
 
 def _naive(dt):
@@ -39,7 +44,8 @@ def build_workbook(outlet_ids, dari, sampai, staff=None, judul=""):
     _sheet(wb, "Ringkasan", ["Keterangan", "Nilai"], [
         ("Laporan", judul), ("Periode", f"{dari:%d/%m/%Y} – {sampai:%d/%m/%Y}"), ("Omzet", s["omzet"]),
         ("Transaksi", s["transaksi"]), ("Item terjual", s["item"]), ("Rata-rata", s["rata_rata"]),
-        ("Diskon", s["diskon"]), ("Void (jumlah)", s["void_jumlah"]), ("Void (nilai)", s["void_nilai"])])
+        ("Diskon", s["diskon"]), ("Void (jumlah)", s["void_jumlah"]), ("Void (nilai)", s["void_nilai"])],
+           money_rows=(4, 7, 8, 10))
     for title, fn, first in (("Harian", q.by_day, "Tanggal"), ("Outlet", q.by_outlet, "Outlet"),
                              ("Metode bayar", q.by_method, "Metode"), ("Staf", q.by_staff, "Staf"),
                              ("Per jam", q.by_hour, "Jam")):
