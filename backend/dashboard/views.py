@@ -5,7 +5,8 @@ from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.views.generic import CreateView, DetailView, ListView, TemplateView, UpdateView
 
-from core.models import Device, User
+from core.audit import form_changes, record
+from core.models import AuditLog, Device, User
 
 from .forms import BusinessForm, LoginForm
 
@@ -42,6 +43,8 @@ class DeviceCreate(OwnerRequired, CreateView):
     def form_valid(self, form):
         response = super().form_valid(form)
         self.object.issue_activation_code()
+        record(AuditLog.Action.DEVICE_CREATE, self.object, f"{self.object.name} · {self.object.outlet}",
+               actor=self.request.user)
         return response
 
     def get_success_url(self):
@@ -57,8 +60,10 @@ class DeviceDetail(OwnerRequired, DetailView):
         if "revoke" in request.POST:
             device.revoked_at = timezone.now()
             device.save(update_fields=["revoked_at"])
+            record(AuditLog.Action.DEVICE_REVOKE, device, device.name, actor=request.user)
         elif device.activated_at is None and device.revoked_at is None:
             device.issue_activation_code()
+            record(AuditLog.Action.DEVICE_CODE, device, device.name, actor=request.user)
         return redirect("device_detail", pk=pk)
 
 
@@ -71,3 +76,10 @@ class BusinessUpdate(OwnerRequired, UpdateView):
 
     def get_object(self, queryset=None):
         return self.request.user.tenant
+
+    def form_valid(self, form):
+        changes = form_changes(form)
+        response = super().form_valid(form)
+        if changes:
+            record(AuditLog.Action.UPDATE, self.object, f"{self.object} — {changes}", actor=self.request.user)
+        return response

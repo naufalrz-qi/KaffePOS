@@ -3,6 +3,9 @@ jadi objek usaha lain otomatis 404 dan tidak muncul di pilihan form."""
 from django.urls import path, reverse_lazy
 from django.views.generic import CreateView, ListView, UpdateView
 
+from core.audit import form_changes, record
+from core.models import AuditLog
+
 from .views import OwnerRequired
 
 
@@ -43,6 +46,16 @@ def crud(model_cls, form_fields, columns, prefix, title, manager="objects", form
 
         def get_queryset(self):
             return scoped()
+
+        def form_valid(self, form):
+            adding = form.instance._state.adding
+            changes = "" if adding else form_changes(form)
+            response = super().form_valid(form)
+            if adding:
+                record(AuditLog.Action.CREATE, self.object, f"{title}: {self.object}", actor=self.request.user)
+            elif changes:
+                record(AuditLog.Action.UPDATE, self.object, f"{self.object} — {changes}", actor=self.request.user)
+            return response
 
     class Create(Edit, CreateView):
         pass
