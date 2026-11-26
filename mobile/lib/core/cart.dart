@@ -43,6 +43,7 @@ class Cart extends ChangeNotifier {
   final lines = <CartLine>[];
   int orderDiscount = 0;
   String discountReason = '';
+  String? discountApprovedById;
   String customerLabel = '';
 
   bool get isEmpty => lines.isEmpty;
@@ -74,15 +75,17 @@ class Cart extends ChangeNotifier {
     _changed();
   }
 
-  void setLineDiscount(CartLine line, int amount, String reason) {
+  void setLineDiscount(CartLine line, int amount, String reason, {String? approvedBy}) {
     line.discount = math.min(amount, line.gross);
     discountReason = reason;
+    discountApprovedById = approvedBy ?? discountApprovedById;
     _changed();
   }
 
-  void setOrderDiscount(int amount, String reason) {
+  void setOrderDiscount(int amount, String reason, {String? approvedBy}) {
     orderDiscount = amount;
     discountReason = reason;
+    discountApprovedById = approvedBy ?? discountApprovedById;
     _changed();
   }
 
@@ -95,6 +98,7 @@ class Cart extends ChangeNotifier {
     lines.clear();
     orderDiscount = 0;
     discountReason = '';
+    discountApprovedById = null;
     customerLabel = '';
     notifyListeners();
   }
@@ -154,6 +158,7 @@ class Cart extends ChangeNotifier {
       'items': items,
       'order_discount': orderDiscount,
       'discount_reason': discounted && discountReason.isNotEmpty ? discountReason : null,
+      'discount_approved_by_id': discounted ? discountApprovedById : null,
       ...t.toJson(),
       'payments': [
         {'id': newId(), ...payment, 'amount': t.total},

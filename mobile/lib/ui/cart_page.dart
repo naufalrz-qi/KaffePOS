@@ -124,6 +124,7 @@ class CartPage extends StatelessWidget {
 
   /// Diskon item ([line]) atau transaksi (null). Staf tanpa izin diskon butuh PIN manager (PRD K-09).
   Future<void> _discount(BuildContext context, CartLine? line) async {
+    String? approvedBy;
     if (state.discountNeedsApproval) {
       final pin = await askPin(context, 'PIN manager untuk diskon');
       if (pin == null || !context.mounted) return;
@@ -133,14 +134,15 @@ class CartPage extends StatelessWidget {
         snack(context, error ?? 'PIN manager salah');
         return;
       }
+      approvedBy = manager.id;
     }
     final result = await askDiscount(context, line?.gross ?? cart.subtotal);
     if (result == null) return;
     final (amount, reason) = result;
     if (line == null) {
-      cart.setOrderDiscount(amount, reason);
+      cart.setOrderDiscount(amount, reason, approvedBy: approvedBy);
     } else {
-      cart.setLineDiscount(line, amount, reason);
+      cart.setLineDiscount(line, amount, reason, approvedBy: approvedBy);
     }
   }
 }
