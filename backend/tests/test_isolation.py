@@ -58,3 +58,12 @@ def test_setup_tenant_creates_business_and_owner(db):
     owner = User.objects.get(username="pemilik")
     assert owner.tenant.name == "Kopi Contoh" and owner.role == User.Role.OWNER
     assert owner.check_password("Kopi-Sore-2026") and check_pin("123456", owner.pin_hash)
+
+
+def test_reports_never_show_other_tenant(client, two_tenants):
+    client.force_login(two_tenants["owner_a"])
+    for path in ["/", "/laporan/", "/laporan/produk/", "/laporan/shift/", "/laporan/void-diskon/", "/audit/"]:
+        r = client.get(path)
+        assert r.status_code == 200 and "RAHASIA" not in r.content.decode(), path
+    b_outlet = two_tenants["b"]["objects"]["outlet"]
+    assert client.get(f"/laporan/?outlet={b_outlet.pk}").status_code == 404

@@ -1,0 +1,27 @@
+{% extends "dashboard/base.html" %}
+{% block content %}
+<h2>Audit log</h2>
+<form method="get">
+  <div class="grid">
+    <label>Aksi <select name="aksi"><option value="">Semua aksi</option>
+      {% for value, label in actions %}<option value="{{ value }}" {% if value == aksi %}selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select></label>
+    <label>Dari <input type="date" name="dari" value="{{ dari }}"></label>
+    <label>Sampai <input type="date" name="sampai" value="{{ sampai }}"></label>
+  </div>
+  <button type="submit">Tampilkan</button>
+</form>
+<div class="overflow-auto"><table><thead><tr><th>Waktu (WIB)</th><th>Pelaku</th><th>Aksi</th><th>Objek</th><th>Rincian</th></tr></thead><tbody>
+{% for log in object_list %}<tr><td>{{ log.at|date:"d/m/y H:i" }}</td>
+<td>{{ log.actor.display_name|default:"-" }}{% if log.device %} · {{ log.device.name }}{% endif %}</td>
+<td>{{ log.get_action_display }}</td><td>{{ log.object_type|default:"-" }}</td><td>{{ log.detail }}</td></tr>
+{% empty %}<tr><td colspan="5">Belum ada data.</td></tr>{% endfor %}
+</tbody></table></div>
+{% if page_obj.has_other_pages %}
+<nav><ul>
+  {% if page_obj.has_previous %}<li><a href="?{{ query }}&amp;page={{ page_obj.previous_page_number }}">Sebelumnya</a></li>{% endif %}
+  <li>Halaman {{ page_obj.number }} dari {{ page_obj.paginator.num_pages }}</li>
+  {% if page_obj.has_next %}<li><a href="?{{ query }}&amp;page={{ page_obj.next_page_number }}">Berikutnya</a></li>{% endif %}
+</ul></nav>
+{% endif %}
+{% endblock %}

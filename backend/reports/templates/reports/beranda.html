@@ -1,0 +1,33 @@
+{% extends "dashboard/base.html" %}{% load rupiah %}
+{% block content %}
+<h2>Halo, {{ user.display_name }}</h2>
+{% if not outlets %}<p>Belum ada outlet yang ditugaskan. Minta owner menambahkan outlet di halaman Staf.</p>{% else %}
+<p><small>Hari ini per zona waktu outlet. Angka mencakup data sampai sync terakhir tiap HP.</small></p>
+{% for sh in shift_lama %}<p><mark>Shift {{ sh.staff.display_name }} di {{ sh.outlet.name }} terbuka lebih dari 24 jam.</mark></p>{% endfor %}
+{% for d in devices %}{% if d.telat %}<p><mark>{{ d.nama }} ({{ d.outlet }}) belum sync lebih dari 24 jam, {{ d.menunggu }} data menunggu.</mark></p>{% endif %}{% endfor %}
+<div class="grid">
+  <article><small>Omzet</small><h3>Rp{{ s.omzet|rupiah }}</h3></article>
+  <article><small>Transaksi</small><h3>{{ s.transaksi }}</h3></article>
+  <article><small>Item terjual</small><h3>{{ s.item }}</h3></article>
+  <article><small>Rata-rata</small><h3>Rp{{ s.rata_rata|rupiah }}</h3></article>
+</div>
+<h4>Per jam</h4>
+{% for r in per_jam %}<label>{{ r.label|stringformat:"02d" }}:00 · Rp{{ r.omzet|rupiah }}<progress value="{{ r.persen }}" max="100"></progress></label>{% empty %}<p>Belum ada penjualan hari ini.</p>{% endfor %}
+<h4>Per outlet</h4>
+<div class="overflow-auto"><table><thead><tr><th>Outlet</th><th>Transaksi</th><th>Omzet</th></tr></thead><tbody>
+{% for r in per_outlet %}<tr><td>{{ r.label }}</td><td>{{ r.transaksi }}</td><td>{{ r.omzet|rupiah }}</td></tr>{% empty %}<tr><td colspan="3">Belum ada data.</td></tr>{% endfor %}
+</tbody></table></div>
+<h4>Metode bayar</h4>
+<div class="overflow-auto"><table><thead><tr><th>Metode</th><th>Transaksi</th><th>Jumlah</th></tr></thead><tbody>
+{% for r in per_metode %}<tr><td>{{ r.label }}</td><td>{{ r.transaksi }}</td><td>{{ r.omzet|rupiah }}</td></tr>{% empty %}<tr><td colspan="3">Belum ada data.</td></tr>{% endfor %}
+</tbody></table></div>
+<h4>Produk terlaris</h4>
+<div class="overflow-auto"><table><thead><tr><th>Produk</th><th>Qty</th><th>Nilai item</th></tr></thead><tbody>
+{% for r in terlaris %}<tr><td>{{ r.label }}</td><td>{{ r.qty }}</td><td>{{ r.omzet|rupiah }}</td></tr>{% empty %}<tr><td colspan="3">Belum ada data.</td></tr>{% endfor %}
+</tbody></table></div>
+<h4>Device</h4>
+<div class="overflow-auto"><table><thead><tr><th>Device</th><th>Outlet</th><th>Sync terakhir</th><th>Menunggu</th><th>Versi</th></tr></thead><tbody>
+{% for d in devices %}<tr><td>{{ d.nama }}</td><td>{{ d.outlet }}</td><td>{{ d.sync|date:"d/m/y H:i"|default:"Belum pernah" }}</td><td>{{ d.menunggu }}</td><td>{{ d.versi }}</td></tr>{% empty %}<tr><td colspan="5">Belum ada device aktif.</td></tr>{% endfor %}
+</tbody></table></div>
+{% endif %}
+{% endblock %}

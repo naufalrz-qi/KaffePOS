@@ -1,0 +1,71 @@
+{% extends "dashboard/base.html" %}{% load rupiah %}
+{% block content %}
+<h2>Laporan</h2>
+{% include "reports/_filter.html" %}
+<nav><ul>{% for name, label in tabs %}<li><a href="{% url name %}?{{ query }}" {% if name == tab %}aria-current="page"{% endif %}>{{ label }}</a></li>{% endfor %}</ul></nav>
+{% if not has_outlets %}<p>Belum ada outlet yang ditugaskan. Minta owner menambahkan outlet di halaman Staf.</p>
+{% elif s %}
+<p><small>Angka mencakup data sampai sync terakhir tiap HP.</small></p>
+<div class="grid">
+  <article><small>Omzet</small><h3>Rp{{ s.omzet|rupiah }}</h3></article>
+  <article><small>Transaksi</small><h3>{{ s.transaksi }}</h3></article>
+  <article><small>Diskon</small><h3>Rp{{ s.diskon|rupiah }}</h3></article>
+  <article><small>Void</small><h3>{{ s.void_jumlah }} · Rp{{ s.void_nilai|rupiah }}</h3></article>
+</div>
+
+{% if tab == "laporan" %}
+<h4>Per hari</h4>
+<div class="overflow-auto"><table><thead><tr><th>Tanggal</th><th>Transaksi</th><th>Omzet</th></tr></thead><tbody>
+{% for r in harian %}<tr><td>{{ r.label|date:"d/m/Y" }}</td><td>{{ r.transaksi }}</td><td>{{ r.omzet|rupiah }}</td></tr>{% empty %}<tr><td colspan="3">Belum ada data.</td></tr>{% endfor %}
+</tbody></table></div>
+<h4>Per outlet</h4>
+<div class="overflow-auto"><table><thead><tr><th>Outlet</th><th>Transaksi</th><th>Omzet</th></tr></thead><tbody>
+{% for r in per_outlet %}<tr><td>{{ r.label }}</td><td>{{ r.transaksi }}</td><td>{{ r.omzet|rupiah }}</td></tr>{% empty %}<tr><td colspan="3">Belum ada data.</td></tr>{% endfor %}
+</tbody></table></div>
+<h4>Per metode bayar</h4>
+<div class="overflow-auto"><table><thead><tr><th>Metode</th><th>Transaksi</th><th>Jumlah</th></tr></thead><tbody>
+{% for r in per_metode %}<tr><td>{{ r.label }}</td><td>{{ r.transaksi }}</td><td>{{ r.omzet|rupiah }}</td></tr>{% empty %}<tr><td colspan="3">Belum ada data.</td></tr>{% endfor %}
+</tbody></table></div>
+<h4>Per staf</h4>
+<div class="overflow-auto"><table><thead><tr><th>Staf</th><th>Transaksi</th><th>Omzet</th></tr></thead><tbody>
+{% for r in per_staf %}<tr><td>{{ r.label }}</td><td>{{ r.transaksi }}</td><td>{{ r.omzet|rupiah }}</td></tr>{% empty %}<tr><td colspan="3">Belum ada data.</td></tr>{% endfor %}
+</tbody></table></div>
+<h4>Per jam</h4>
+{% for r in per_jam %}<label>{{ r.label|stringformat:"02d" }}:00 · {{ r.transaksi }} transaksi · Rp{{ r.omzet|rupiah }}<progress value="{{ r.persen }}" max="100"></progress></label>{% empty %}<p>Belum ada data.</p>{% endfor %}
+
+{% elif tab == "laporan_produk" %}
+<h4>Per produk</h4>
+<div class="overflow-auto"><table><thead><tr><th>Produk</th><th>Qty</th><th>Nilai item</th></tr></thead><tbody>
+{% for r in produk %}<tr><td>{{ r.label }}</td><td>{{ r.qty }}</td><td>{{ r.omzet|rupiah }}</td></tr>{% empty %}<tr><td colspan="3">Belum ada data.</td></tr>{% endfor %}
+</tbody></table></div>
+<h4>Per kategori</h4>
+<div class="overflow-auto"><table><thead><tr><th>Kategori</th><th>Qty</th><th>Nilai item</th></tr></thead><tbody>
+{% for r in kategori %}<tr><td>{{ r.label }}</td><td>{{ r.qty }}</td><td>{{ r.omzet|rupiah }}</td></tr>{% empty %}<tr><td colspan="3">Belum ada data.</td></tr>{% endfor %}
+</tbody></table></div>
+<h4>Per modifier</h4>
+<div class="overflow-auto"><table><thead><tr><th>Modifier</th><th>Qty</th><th>Nilai item</th></tr></thead><tbody>
+{% for r in modifier %}<tr><td>{{ r.label }}</td><td>{{ r.qty }}</td><td>{{ r.omzet|rupiah }}</td></tr>{% empty %}<tr><td colspan="3">Belum ada data.</td></tr>{% endfor %}
+</tbody></table></div>
+
+{% elif tab == "laporan_shift" %}
+<h4>Shift</h4>
+<div class="overflow-auto"><table><thead><tr><th>Outlet</th><th>Staf</th><th>Buka</th><th>Tutup</th><th>Modal</th><th>Kas seharusnya</th><th>Kas fisik</th><th>Selisih</th></tr></thead><tbody>
+{% for r in shifts %}<tr><td>{{ r.outlet }}</td><td>{{ r.staf }}</td><td>{{ r.buka|date:"d/m/y H:i" }}</td>
+<td>{% if r.tutup %}{{ r.tutup|date:"d/m/y H:i" }}{% elif r.lama %}<mark>Terbuka &gt; 24 jam</mark>{% else %}Masih buka{% endif %}</td>
+<td>{{ r.modal|rupiah }}</td><td>{{ r.seharusnya|rupiah }}</td><td>{{ r.fisik|rupiah }}</td>
+<td>{% if r.selisih is None %}-{% elif r.selisih < 0 %}<mark>{{ r.selisih|rupiah }}</mark>{% else %}{{ r.selisih|rupiah }}{% endif %}</td></tr>
+{% empty %}<tr><td colspan="8">Belum ada data.</td></tr>{% endfor %}
+</tbody></table></div>
+
+{% else %}
+<h4>Void</h4>
+<div class="overflow-auto"><table><thead><tr><th>No struk</th><th>Waktu</th><th>Nilai</th><th>Alasan</th><th>Pelaku</th><th>Penyetuju</th></tr></thead><tbody>
+{% for r in voids %}<tr><td>{{ r.struk }}</td><td>{{ r.waktu|date:"d/m/y H:i" }}</td><td>{{ r.nilai|rupiah }}</td><td>{{ r.alasan|default:"-" }}</td><td>{{ r.oleh }}</td><td>{{ r.disetujui }}</td></tr>{% empty %}<tr><td colspan="6">Belum ada data.</td></tr>{% endfor %}
+</tbody></table></div>
+<h4>Diskon</h4>
+<div class="overflow-auto"><table><thead><tr><th>No struk</th><th>Waktu</th><th>Nilai</th><th>Alasan</th><th>Kasir</th><th>Penyetuju</th></tr></thead><tbody>
+{% for r in discounts %}<tr><td>{{ r.struk }}</td><td>{{ r.waktu|date:"d/m/y H:i" }}</td><td>{{ r.nilai|rupiah }}</td><td>{{ r.alasan|default:"-" }}</td><td>{{ r.oleh }}</td><td>{{ r.disetujui }}</td></tr>{% empty %}<tr><td colspan="6">Belum ada data.</td></tr>{% endfor %}
+</tbody></table></div>
+{% endif %}
+{% endif %}
+{% endblock %}

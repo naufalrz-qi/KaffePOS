@@ -3,7 +3,7 @@ from django.contrib.auth.views import LoginView
 from django.shortcuts import redirect
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
-from django.views.generic import CreateView, DetailView, ListView, TemplateView, UpdateView
+from django.views.generic import CreateView, DetailView, ListView, UpdateView
 
 from core.audit import form_changes, record
 from core.models import AuditLog, Device, User
@@ -12,7 +12,7 @@ from .forms import BusinessForm, LoginForm
 
 
 class OwnerRequired(LoginRequiredMixin, UserPassesTestMixin):
-    """Halaman kelola data master hanya untuk owner. Akses manager untuk laporan menyusul di M4."""
+    """Halaman kelola data master & audit log hanya untuk owner."""
 
     def test_func(self):
         return self.request.user.role == User.Role.OWNER
@@ -21,10 +21,6 @@ class OwnerRequired(LoginRequiredMixin, UserPassesTestMixin):
 class Login(LoginView):
     template_name = "dashboard/login.html"
     form_class = LoginForm
-
-
-class Home(LoginRequiredMixin, TemplateView):
-    template_name = "dashboard/home.html"
 
 
 class DeviceList(OwnerRequired, ListView):
